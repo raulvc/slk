@@ -11,7 +11,7 @@
 >
 > Keep current with upstream and reinstall in one step:
 > `scripts/sync-fork.sh` — rebases `main` onto upstream, force-pushes the fork,
-> rebuilds with a stamped version and installs to `~/.local/bin`.
+> then reinstalls with `go install` (version stamped: upstream tag + fork commit).
 
 <!-- FORK:END -->
 

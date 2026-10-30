@@ -68,19 +68,18 @@ else
     echo "fork main = upstream/main + $(git rev-list --count upstream/main..main) local commits"
 fi
 
-# Rebuild and install with a stamped version (upstream tag + fork commit),
-# so `slk --version` says where this binary came from. ~/.local/bin comes
-# first in PATH, so this shadows any AUR-installed /usr/bin/slk.
+# Reinstall with a stamped version (upstream tag + fork commit), so
+# `slk --version` says where this binary came from. go install puts it
+# in $(go env GOPATH)/bin (~/go/bin by default), which is on PATH.
 if [ "$dry" -eq 1 ]; then
-    echo "dry-run: would build and install to ~/.local/bin/slk"
+    echo "dry-run: would go install slk"
 else
     tag=$(git describe --tags --abbrev=0)
     sha=$(git rev-parse --short HEAD)
     version="${tag}.fork-${sha}"
     date=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-    mkdir -p bin
-    go build -ldflags="-s -w -X main.version=${version} -X main.commit=${sha} -X main.date=${date}" \
-        -trimpath -o bin/slk ./cmd/slk
-    install -m 0755 bin/slk "$HOME/.local/bin/slk"
-    echo "installed: $HOME/.local/bin/slk ($("$HOME/.local/bin/slk" --version | head -1))"
+    go install -ldflags="-s -w -X main.version=${version} -X main.commit=${sha} -X main.date=${date}" \
+        -trimpath ./cmd/slk
+    bin="$(go env GOPATH)/bin/slk"
+    echo "installed: $bin ($("$bin" --version | head -1))"
 fi
