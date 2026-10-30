@@ -198,6 +198,80 @@ func markChannelReadAsync(
 	go markChannelReadAndNotify(ctx, client, db, notify, channelID, ts)
 }
 
+// markAllChannelsReadAsync runs markAllChannelsRead in a background
+// goroutine and returns immediately. Same goroutine rule as
+// markChannelReadAsync: p.Send blocks until the Update goroutine
+// receives, so this must never run on Update.
+func markAllChannelsReadAsync(
+	ctx context.Context,
+	client channelMarker,
+	db *cache.DB,
+	p *tea.Program,
+	workspaceID string,
+) {
+	if client == nil || db == nil {
+		return
+	}
+	var notify func(tea.Msg)
+	if p != nil {
+		notify = func(m tea.Msg) { p.Send(m) }
+	}
+	go markAllChannelsRead(ctx, client, db, notify, workspaceID)
+}
+
+// markAllChannelsRead is Shift+Esc's engine half: mark every
+// conversation whose cached read state says unread, in workspaceID, up
+// to each channel's newest known message. Returns the number of mark
+// attempts issued; whether each one was accepted is observable only
+// through notify (ChannelMarkedReadMsg arrives per accepted mark).
+//
+// Marks run sequentially: each conversations.mark round trip paces the
+// next, which keeps the batch inside the endpoint's Tier 3 budget
+// (~50 requests/minute) without a sleep loop. Each mark reports success
+// with ChannelMarkedReadMsg, so the sidebar clears as the marks settle
+// rather than all at once.
+//
+// A channel with unread state but no sync watermark (never fetched in
+// any session) is skipped and logged: conversations.mark needs a ts,
+// and guessing one could mark messages slk never saw. It heals when the
+// user enters the channel, which auto-marks as usual.
+//
+// A mark Slack rejects is logged and does not stop the walk — the same
+// policy markChannelReadAndNotify applies to single marks. Synchronous
+// so the failure path is deterministically testable.
+func markAllChannelsRead(
+	ctx context.Context,
+	client channelMarker,
+	db *cache.DB,
+	notify func(tea.Msg),
+	workspaceID string,
+) int {
+	state, err := db.GetWorkspaceReadState(workspaceID)
+	if err != nil {
+		log.Printf("Warning: mark-all-read: GetWorkspaceReadState %s: %v", workspaceID, err)
+		return 0
+	}
+	marked := 0
+	for channelID, rs := range state {
+		if !rs.HasUnread {
+			continue
+		}
+		ts, err := db.GetChannelWatermark(channelID)
+		if err != nil {
+			log.Printf("Warning: mark-all-read: watermark %s: %v", channelID, err)
+			continue
+		}
+		if ts == "" {
+			log.Printf("Warning: mark-all-read: no cached watermark for %s, skipping (will heal on channel entry)", channelID)
+			continue
+		}
+		markChannelReadAndNotify(ctx, client, db, notify, channelID, ts)
+		marked++
+	}
+	debuglog.Cache("markAllChannelsRead: workspace=%s marked=%d", workspaceID, marked)
+	return marked
+}
+
 func (h *rtmEventHandler) OnChannelMarked(channelID, ts string, unreadCount, mentionCount int) {
 	// Slack's *_marked events fire in BOTH directions: when the user
 	// reads a channel (unreadCount=0) AND when the user marks one

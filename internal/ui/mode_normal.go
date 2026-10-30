@@ -3,13 +3,15 @@
 // Normal-mode key handler (Phase 5k).
 //
 // The bulk of slk's keybinding surface lives here:
-//   - mode entry: i (insert), Ctrl-T (channel finder), : (command
-//     prompt), Ctrl-Y (theme switcher), ? (help),
+//   - mode entry: i (insert), Ctrl-T/Ctrl-K (channel finder), :
+//     (command prompt), Ctrl-Y (theme switcher), ? (help),
 //     S (presence menu), R (reaction picker)
 //   - navigation: j/k (selection), Ctrl-D/U (half-page), C-f/b
 //     (page), G (bottom), Tab/h/l (focus next/prev), Ctrl-h/l
-//     (nav back/forward through visited channels; Ctrl-k is an
-//     alias for forward)
+//     (nav back/forward through visited channels; alt+left/right
+//     are aliases, Slack-style)
+//   - shift+esc: mark every unread conversation in the workspace read
+//     (the official client's "mark everything read")
 //   - layout toggles: ctrl+b (sidebar), ctrl+] (thread)
 //   - theme cycle: Alt-Y / Alt-Shift-Y apply the next / previous
 //     theme, wrapping around (saved per workspace, like Ctrl-Y)
@@ -31,6 +33,7 @@
 package ui
 
 import (
+	"fmt"
 	"time"
 
 	"charm.land/bubbles/v2/key"
@@ -286,9 +289,12 @@ func handleNormalMode(a *App, msg tea.KeyMsg) tea.Cmd {
 		a.presenceMenu.OpenWith(header, pres, dndEnabled, dndEnd)
 		a.SetMode(ModePresenceMenu)
 
-	case key.Matches(msg, a.keys.FuzzyFinder) || key.Matches(msg, a.keys.FuzzyFinderAlt):
+	case key.Matches(msg, a.keys.FuzzyFinder) || key.Matches(msg, a.keys.FuzzyFinderAlt) || key.Matches(msg, a.keys.GlobalFinder):
 		a.channelFinder.Open()
 		a.SetMode(ModeChannelFinder)
+
+	case key.Matches(msg, a.keys.MarkAllRead):
+		return a.markAllRead()
 
 	case key.Matches(msg, a.keys.NewMessage):
 		return func() tea.Msg { return EnterNewMessageMsg{} }
@@ -433,4 +439,42 @@ func (a *App) jumpToUnread(dir int) tea.Cmd {
 	return func() tea.Msg {
 		return ChannelSelectedMsg{ID: id, Name: name, Type: chType}
 	}
+}
+
+// markAllRead is Shift+Esc: mark every unread conversation in the
+// active workspace read, the official client's "mark everything read".
+//
+// The count comes from the read-state service (the same source the
+// sidebar dots use, so the toast agrees with what is visible); the
+// marks themselves are issued engine-side through
+// ChannelService.MarkAllRead, each one reporting success with
+// ChannelMarkedReadMsg. The sidebar clears as those messages land, so
+// nothing is cleared optimistically here.
+func (a *App) markAllRead() tea.Cmd {
+	if a.unread == nil {
+		return nil
+	}
+	unread := 0
+	for _, state := range a.unread.ChannelReadStates() {
+		if state.HasUnread {
+			unread++
+		}
+	}
+	if unread == 0 {
+		return toastWithClear(a, "No unread channels", 2*time.Second)
+	}
+	toast := toastWithClear(a, fmt.Sprintf("Marking %d channel%s read", unread, pluralSuffix(unread)), 2*time.Second)
+	mark := a.channels.MarkAllRead()
+	if mark == nil {
+		return toast
+	}
+	return tea.Batch(toast, func() tea.Msg { return mark })
+}
+
+// pluralSuffix returns "s" for counts other than exactly one.
+func pluralSuffix(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }

@@ -92,7 +92,8 @@ func NewInteractionService(fns InteractionServiceFuncs) InteractionService {
 type interactionAdapter struct{ fns InteractionServiceFuncs }
 
 func (i interactionAdapter) PressAttachmentAction(channelID ids.ChannelID, messageTS ids.MessageTS,
-	attachmentID int, callbackID, serviceID string, action blocks.LegacyAction, ephemeral bool) error {
+	attachmentID int, callbackID, serviceID string, action blocks.LegacyAction, ephemeral bool,
+) error {
 	if i.fns.PressAttachmentAction == nil {
 		return errors.ErrUnsupported
 	}
@@ -316,6 +317,7 @@ type ChannelServiceFuncs struct {
 	ReadCache           ChannelCacheReadFunc
 	SyncedAt            func(channelID ids.ChannelID) int64
 	MarkRead            func(channelID ids.ChannelID, ts ids.MessageTS) Msg
+	MarkAllRead         func() Msg
 	Lookup              ChannelLookupFunc
 	Join                JoinChannelFunc
 	RecordVisit         ChannelVisitRecorder
@@ -375,6 +377,13 @@ func (c channelAdapter) MarkRead(channelID ids.ChannelID, ts ids.MessageTS) Msg 
 		return nil
 	}
 	return c.fns.MarkRead(channelID, ts)
+}
+
+func (c channelAdapter) MarkAllRead() Msg {
+	if c.fns.MarkAllRead == nil {
+		return nil
+	}
+	return c.fns.MarkAllRead()
 }
 
 func (c channelAdapter) Lookup(channelID ids.ChannelID) (name, channelType string, ok bool) {
@@ -785,14 +794,18 @@ type ActivityHydrateFunc func(teamID ids.TeamID, refs map[string][]string) Msg
 // unread in teamID's feed.
 type ActivitySetReadFunc func(teamID ids.TeamID, item ActivityItem, read bool) Msg
 
-type ReactionAddFunc func(channelID ids.ChannelID, messageTS ids.MessageTS, emoji string) error
-type ReactionRemoveFunc func(channelID ids.ChannelID, messageTS ids.MessageTS, emoji string) error
+type (
+	ReactionAddFunc    func(channelID ids.ChannelID, messageTS ids.MessageTS, emoji string) error
+	ReactionRemoveFunc func(channelID ids.ChannelID, messageTS ids.MessageTS, emoji string) error
+)
 
 // PermalinkFetchFunc is called to fetch the Slack permalink for a message.
 // For thread replies, pass the reply's ts; Slack returns a thread-aware URL.
-type PermalinkFetchFunc func(ctx context.Context, channelID ids.ChannelID, ts ids.MessageTS) (string, error)
-type FrecentLoadFunc func(limit int) []EmojiEntry
-type FrecentRecordFunc func(emoji string)
+type (
+	PermalinkFetchFunc func(ctx context.Context, channelID ids.ChannelID, ts ids.MessageTS) (string, error)
+	FrecentLoadFunc    func(limit int) []EmojiEntry
+	FrecentRecordFunc  func(emoji string)
+)
 
 // JoinChannelFunc is called to join a public channel by ID. Returns a Msg
 // describing the result (typically ChannelJoinedMsg or ChannelJoinFailedMsg).

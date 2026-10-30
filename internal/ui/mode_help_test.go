@@ -34,15 +34,14 @@ func openHelpSearching(t *testing.T, a *App) {
 }
 
 // TestHelpShowsCtrlLForNavForward pins the help label for NavForward.
-// ctrl+k still dispatches (see TestNormalModeKeys) but is an
-// unadvertised alias, so the overlay must list ctrl+l alone.
+// alt+right is an advertised alias, so the overlay lists both.
 func TestHelpShowsCtrlLForNavForward(t *testing.T) {
 	for _, e := range help.FromKeyMap(DefaultKeyMap()) {
 		if e.Desc != "navigate forward" {
 			continue
 		}
-		if e.Key != "ctrl+l" {
-			t.Errorf("navigate forward help key = %q, want %q", e.Key, "ctrl+l")
+		if e.Key != "ctrl+l / alt+right" {
+			t.Errorf("navigate forward help key = %q, want %q", e.Key, "ctrl+l / alt+right")
 		}
 		return
 	}

@@ -294,6 +294,13 @@ type App struct {
 	// call sites can dispatch without nil-checks.
 	activity core.ActivityService
 
+	// unread serves the per-channel read states the sidebar and
+	// workspace rail render; kept here (not only handed to them) so
+	// Shift+Esc can count unread conversations without a second
+	// wiring. SetUnreadService stores it; nil is allowed and simply
+	// disables Shift+Esc.
+	unread core.UnreadService
+
 	// activityReads holds the Activity items with a read-state request
 	// to Slack under way, keyed by activityReadKey. Update goroutine
 	// only.
@@ -1087,7 +1094,8 @@ func (a *App) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// switch shrinks. Order doesn't matter semantically — message
 	// types are disjoint across reducers — but stable order keeps
 	// the trace predictable.
-	if cmd, handled := dispatchReducers(a, msg,
+	if cmd, handled := dispatchReducers(
+		a, msg,
 		a.presence,
 		a.preview,
 		a.drag,
@@ -2451,7 +2459,8 @@ func (a *App) applyThreadUnreadBoundary(channelID, threadTS string) {
 		return
 	}
 	a.threadPanel.SetLastReadTS(a.threads.ThreadLastRead(
-		ids.ChannelID(channelID), ids.ThreadTS(threadTS)))
+		ids.ChannelID(channelID), ids.ThreadTS(threadTS),
+	))
 }
 
 // scheduleThreadsDirty returns a tea.Cmd that fires a ThreadsListDirtyMsg
@@ -2822,7 +2831,9 @@ func (a *App) SetActivityService(s core.ActivityService) {
 
 // SetUnreadService wires the read state the sidebar and workspace rail
 // render. Must be set before the first render for unread dots to appear.
+// The service is also kept on the App for Shift+Esc's unread count.
 func (a *App) SetUnreadService(s core.UnreadService) {
+	a.unread = s
 	if s == nil {
 		a.sidebar.SetReadStateReader(nil)
 		a.workspaceRail.SetUnreadReader(nil)
@@ -3870,7 +3881,8 @@ func (a *App) tryAttachFromClipboard(target *compose.Model, pathCandidate string
 	// 1. Image bytes from the OS clipboard.
 	if imgBytes := a.desktop.ReadClipboard(core.ClipboardImage); len(imgBytes) > 0 {
 		if int64(len(imgBytes)) > maxAttachmentSize {
-			return true, toastWithClear(a,
+			return true, toastWithClear(
+				a,
 				fmt.Sprintf("Image too large (%s > 10 MB limit)", humanSize(int64(len(imgBytes)))),
 				3*time.Second,
 			)
@@ -3882,7 +3894,8 @@ func (a *App) tryAttachFromClipboard(target *compose.Model, pathCandidate string
 			Mime:     "image/png",
 			Size:     int64(len(imgBytes)),
 		})
-		return true, toastWithClear(a,
+		return true, toastWithClear(
+			a,
 			fmt.Sprintf("Attached: %s (%s)", filename, humanSize(int64(len(imgBytes)))),
 			2*time.Second,
 		)
@@ -3905,7 +3918,8 @@ func (a *App) tryAttachFromClipboard(target *compose.Model, pathCandidate string
 				Mime:     mime.TypeByExtension(filepath.Ext(path)),
 				Size:     info.Size(),
 			})
-			return true, toastWithClear(a,
+			return true, toastWithClear(
+				a,
 				fmt.Sprintf("Attached: %s (%s)", filename, humanSize(info.Size())),
 				2*time.Second,
 			)

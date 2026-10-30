@@ -273,7 +273,7 @@ func run() error {
 
 	// Initialize cache database
 	dbPath := filepath.Join(dataDir, "cache.db")
-	if err := os.MkdirAll(dataDir, 0700); err != nil {
+	if err := os.MkdirAll(dataDir, 0o700); err != nil {
 		return fmt.Errorf("creating data dir: %w", err)
 	}
 	db, err := cache.New(dbPath)
@@ -284,7 +284,7 @@ func run() error {
 
 	// Ensure image cache dir exists
 	imgCacheDir := filepath.Join(cacheDir, "images")
-	os.MkdirAll(imgCacheDir, 0700)
+	os.MkdirAll(imgCacheDir, 0o700)
 
 	// Load tokens
 	tokenDir := filepath.Join(dataDir, "tokens")
@@ -305,7 +305,8 @@ func run() error {
 	// Re-mint tokens from the live desktop cookie so every launch starts
 	// with fresh xoxc tokens (they expire; the desktop cookie is the source
 	// of truth). Falls back to cached tokens when offline / desktop absent.
-	tokens = remintTokens(context.Background(), tokens,
+	tokens = remintTokens(
+		context.Background(), tokens,
 		slackdesktop.Cookie,
 		slackdesktop.Tokens,
 		slackclient.MintToken,
@@ -900,6 +901,14 @@ func run() error {
 				markChannelReadAsync(ctx, wctx.Client, db, p, string(channelID), string(ts))
 				return nil // ChannelMarkedReadMsg is emitted from inside the goroutine
 			},
+			MarkAllRead: func() core.Msg {
+				wctx := router.Active()
+				if wctx == nil || wctx.Client == nil {
+					return nil
+				}
+				markAllChannelsReadAsync(ctx, wctx.Client, db, p, wctx.TeamID)
+				return nil // one ChannelMarkedReadMsg per settled mark, from the goroutine
+			},
 			FetchOlder: func(channelID ids.ChannelID, oldestTS ids.MessageTS) core.Msg {
 				chIDStr := string(channelID)
 				wctx := router.Active()
@@ -1411,7 +1420,8 @@ func run() error {
 
 		app.SetInteractionService(core.NewInteractionService(core.InteractionServiceFuncs{
 			PressAttachmentAction: func(channelID ids.ChannelID, messageTS ids.MessageTS,
-				attachmentID int, callbackID, serviceID string, action blocks.LegacyAction, ephemeral bool) error {
+				attachmentID int, callbackID, serviceID string, action blocks.LegacyAction, ephemeral bool,
+			) error {
 				wctx := router.Active()
 				if wctx == nil {
 					return errors.New("no active workspace")
@@ -1443,7 +1453,6 @@ func run() error {
 			_ = wctx.Client.SendTyping(channelID)
 		}
 		app.SetPresenceService(core.NewPresenceService(setStatus, sendTyping))
-
 	}
 
 	// Bind all callbacks once. They read router.Active() at invocation.

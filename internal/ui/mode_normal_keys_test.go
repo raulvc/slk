@@ -165,13 +165,16 @@ func focusThreadPanel(t *testing.T, a *App) {
 		messages.MessageItem{TS: "10.0", UserID: "U1", UserName: "alice", Text: "parent", ThreadTS: "10.0"},
 		[]messages.MessageItem{
 			{TS: "11.0", UserID: "U1", UserName: "alice", Text: "reply-1"},
-			{TS: "12.0", UserID: "U2", UserName: "bob", Text: "reply-2",
+			{
+				TS: "12.0", UserID: "U2", UserName: "bob", Text: "reply-2",
 				Reactions: []messages.ReactionItem{
 					{Emoji: "thumbsup", Count: 1, UserIDs: []string{"U1"}},
 					{Emoji: "eyes", Count: 1, UserIDs: []string{"U1"}},
-				}},
+				},
+			},
 		},
-		"C1", "10.0")
+		"C1", "10.0",
+	)
 	a.threadVisible = true
 	a.focusedPanel = PanelThread
 	if a.threadPanel.SelectedReply() == nil {
@@ -259,6 +262,8 @@ func TestNormalModeKeys(t *testing.T) {
 	var wantCollapsed bool
 	// Carried from setup to assert for the sidebar `gg` row.
 	var sidebarTopRow string
+	// Marks recorded by the shift+esc arm's fake ChannelService.
+	var markAllCalls int
 
 	runKeyCases(t, ModeNormal, []keyCase{
 		// -------------------------------------------------------------
@@ -840,7 +845,9 @@ func TestNormalModeKeys(t *testing.T) {
 		},
 
 		// -------------------------------------------------------------
-		// Arms 15 & 16: NavBack `ctrl+h` / NavForward `ctrl+l` (alias `ctrl+k`)
+		// Arms 15 & 16: NavBack `ctrl+h` / NavForward `ctrl+l`.
+		// alt+left / alt+right are aliases; ctrl+k now opens the finder
+		// (Arm 32's table covers it).
 		// -------------------------------------------------------------
 		{
 			name:     "ctrl+h walks the nav history backward",
@@ -861,8 +868,27 @@ func TestNormalModeKeys(t *testing.T) {
 				}
 			},
 		},
-		navForwardCase("ctrl+l walks the nav history forward", 'l'),
-		navForwardCase("ctrl+k (alias) walks the nav history forward", 'k'),
+		{
+			name:     "alt+left walks the nav history backward",
+			opts:     append(normalOpts(), withActiveTeam("T1"), navLookupOpt()),
+			setup:    seedNavHistory,
+			key:      keyMod(tea.KeyLeft, tea.ModAlt),
+			wantMode: ModeNormal,
+			assert: func(t *testing.T, a *App, cmd tea.Cmd) {
+				if cmd == nil {
+					t.Fatal("cmd = nil, want a ChannelSelectedMsg cmd")
+				}
+				msg, ok := cmd().(ChannelSelectedMsg)
+				if !ok {
+					t.Fatalf("cmd() = %#v, want ChannelSelectedMsg", cmd())
+				}
+				if msg.ID != "C1" || !msg.FromHistory {
+					t.Errorf("cmd() = %+v, want {ID:C1 FromHistory:true}", msg)
+				}
+			},
+		},
+		navForwardCase("ctrl+l walks the nav history forward", keyMod('l', tea.ModCtrl)),
+		navForwardCase("alt+right walks the nav history forward", keyMod(tea.KeyRight, tea.ModAlt)),
 		{
 			// The arm's `if cmd != nil` guard falls THROUGH on an empty
 			// stack rather than returning, so the switch ends at the
@@ -1377,6 +1403,79 @@ func TestNormalModeKeys(t *testing.T) {
 				if !a.channelFinder.IsVisible() {
 					t.Error("channel finder not visible")
 				}
+			},
+		},
+		{
+			// Took over from navigate-forward (ctrl+k was its alias); the
+			// official client's jump dialog key.
+			name:     "ctrl+k opens the channel finder",
+			opts:     normalOpts(),
+			key:      keyMod('k', tea.ModCtrl),
+			wantMode: ModeChannelFinder,
+			assert: func(t *testing.T, a *App, _ tea.Cmd) {
+				if !a.channelFinder.IsVisible() {
+					t.Error("channel finder not visible")
+				}
+			},
+		},
+
+		// -------------------------------------------------------------
+		// Arm 32b: MarkAllRead `shift+esc` (mode_normal.go)
+		// -------------------------------------------------------------
+		{
+			name: "shift+esc with nothing unread toasts 'No unread channels'",
+			opts: normalOpts(),
+			setup: func(t *testing.T, a *App) {
+				a.SetChannelService(core.NewChannelService(core.ChannelServiceFuncs{
+					MarkAllRead: func() core.Msg {
+						markAllCalls++
+						return nil
+					},
+				}))
+				a.SetUnreadService(core.NewUnreadService(func() map[string]core.ReadState {
+					return map[string]core.ReadState{"C1": {HasUnread: false}}
+				}, nil))
+			},
+			key:      keyMod(tea.KeyEscape, tea.ModShift),
+			wantMode: ModeNormal,
+			assert: func(t *testing.T, a *App, cmd tea.Cmd) {
+				if markAllCalls != 0 {
+					t.Errorf("MarkAllRead called %d times, want 0", markAllCalls)
+				}
+				if got := statusbarText(a); !strings.Contains(got, "No unread channels") {
+					t.Errorf("statusbar = %q, want the no-unread toast", got)
+				}
+				_ = cmd
+			},
+		},
+		{
+			name: "shift+esc fires MarkAllRead once and toasts the count",
+			opts: normalOpts(),
+			setup: func(t *testing.T, a *App) {
+				a.SetChannelService(core.NewChannelService(core.ChannelServiceFuncs{
+					MarkAllRead: func() core.Msg {
+						markAllCalls++
+						return nil
+					},
+				}))
+				a.SetUnreadService(core.NewUnreadService(func() map[string]core.ReadState {
+					return map[string]core.ReadState{
+						"C1": {HasUnread: true},
+						"C2": {HasUnread: true, MentionCount: 2},
+						"C3": {HasUnread: false},
+					}
+				}, nil))
+			},
+			key:      keyMod(tea.KeyEscape, tea.ModShift),
+			wantMode: ModeNormal,
+			assert: func(t *testing.T, a *App, cmd tea.Cmd) {
+				if markAllCalls != 1 {
+					t.Errorf("MarkAllRead called %d times, want 1", markAllCalls)
+				}
+				if got := statusbarText(a); !strings.Contains(got, "Marking 2 channels read") {
+					t.Errorf("statusbar = %q, want the marking toast", got)
+				}
+				_ = cmd
 			},
 		},
 
@@ -2425,8 +2524,8 @@ func navLookupOpt() testOpt {
 }
 
 // navForwardCase builds the NavForward row for one of its keys: seed
-// [C1 C2], step back to C1, then ctrl+<r> must step forward to C2.
-func navForwardCase(name string, r rune) keyCase {
+// [C1 C2], step back to C1, then the given press must step forward to C2.
+func navForwardCase(name string, key tea.KeyMsg) keyCase {
 	return keyCase{
 		name: name,
 		opts: append(normalOpts(), withActiveTeam("T1"), navLookupOpt()),
@@ -2436,7 +2535,7 @@ func navForwardCase(name string, r rune) keyCase {
 				t.Fatal("precondition: could not step back before stepping forward")
 			}
 		},
-		key:      keyMod(r, tea.ModCtrl),
+		key:      key,
 		wantMode: ModeNormal,
 		assert: func(t *testing.T, a *App, cmd tea.Cmd) {
 			if cmd == nil {

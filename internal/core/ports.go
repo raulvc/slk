@@ -254,6 +254,13 @@ type ChannelService interface {
 	// a Msg (typically ChannelMarkedReadMsg).
 	MarkRead(channelID ids.ChannelID, ts ids.MessageTS) Msg
 
+	// MarkAllRead marks every unread conversation in the active
+	// workspace read, up to each channel's newest known message (the
+	// official client's Shift+Esc). Async implementations return nil
+	// and report each settled mark with ChannelMarkedReadMsg; the UI
+	// therefore clears nothing optimistically itself.
+	MarkAllRead() Msg
+
 	// Lookup returns metadata (name, channelType) for channelID, or
 	// ok=false if the channel is no longer available in the active
 	// workspace. Used by navHistoryStore.Walk to skip stale entries.

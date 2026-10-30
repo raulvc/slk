@@ -24,6 +24,8 @@ type KeyMap struct {
 	ToggleThread        key.Binding
 	FuzzyFinder         key.Binding
 	FuzzyFinderAlt      key.Binding
+	GlobalFinder        key.Binding
+	MarkAllRead         key.Binding
 	Top                 key.Binding
 	Bottom              key.Binding
 	PageUp              key.Binding
@@ -105,6 +107,12 @@ func DefaultKeyMap() KeyMap {
 		ToggleThread:    key.NewBinding(key.WithKeys("ctrl+]"), key.WithHelp("ctrl+]", "toggle thread")),
 		FuzzyFinder:     key.NewBinding(key.WithKeys("ctrl+t"), key.WithHelp("ctrl+t", "switch channel")),
 		FuzzyFinderAlt:  key.NewBinding(key.WithKeys("ctrl+p"), key.WithHelp("ctrl+p", "switch channel")),
+		// Slack-style jump dialog: channels, DMs and browseable public
+		// channels. Took over from navigate-forward, which keeps ctrl+l
+		// (and alt+right) only.
+		GlobalFinder: key.NewBinding(key.WithKeys("ctrl+k"), key.WithHelp("ctrl+k", "jump to channel or DM")),
+		// Shift+Esc mirrors the official client's "mark everything read".
+		MarkAllRead:     key.NewBinding(key.WithKeys("shift+esc"), key.WithHelp("shift+esc", "mark all channels read")),
 		Top:             key.NewBinding(key.WithKeys("g"), key.WithHelp("gg", "top")),
 		Bottom:          key.NewBinding(key.WithKeys("G"), key.WithHelp("G", "bottom")),
 		PageUp:          key.NewBinding(key.WithKeys("pgup"), key.WithHelp("PgUp", "page up")),
@@ -152,10 +160,10 @@ func DefaultKeyMap() KeyMap {
 		ThemePrev:           key.NewBinding(key.WithKeys("alt+shift+y", "alt+Y", "alt+shift+Y"), key.WithHelp("alt+shift+y", "prev theme (per workspace)")),
 		PresenceMenu:        key.NewBinding(key.WithKeys("ctrl+s"), key.WithHelp("ctrl+s", "set status")),
 		ToggleSection:       key.NewBinding(key.WithKeys("space"), key.WithHelp("space", "toggle section")),
-		NavBack:             key.NewBinding(key.WithKeys("ctrl+h"), key.WithHelp("ctrl+h", "navigate back")),
-		// ctrl+k was the original forward key. It stays bound for
-		// existing users but is left out of the help overlay.
-		NavForward: key.NewBinding(key.WithKeys("ctrl+l", "ctrl+k"), key.WithHelp("ctrl+l", "navigate forward")),
+		NavBack:             key.NewBinding(key.WithKeys("ctrl+h", "alt+left"), key.WithHelp("ctrl+h / alt+left", "navigate back")),
+		// ctrl+k used to be the forward alias; it now opens the
+		// Slack-style jump dialog (GlobalFinder above).
+		NavForward: key.NewBinding(key.WithKeys("ctrl+l", "alt+right"), key.WithHelp("ctrl+l / alt+right", "navigate forward")),
 		Help:       key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "show keybindings")),
 		// Keyless, like MarksList: :help is dispatched from the
 		// command registry. Kept apart from Help so the status-bar
