@@ -12,7 +12,10 @@ func TestResolveShortcodesInText(t *testing.T) {
 		{"single safe emoji", "look :smile: here", "look 😄  here"},
 		{"single unsafe (ZWJ) emoji stays text", "pride :rainbow_flag: month", "pride :rainbow_flag: month"},
 		{"unsafe with slack hyphen form", "pride :rainbow-flag: month", "pride :rainbow-flag: month"},
-		{"VS16 emoji stays as shortcode", "love :heart: you", "love :heart: you"},
+		// VS16 emoji render as their bare glyph: the selector is the
+		// width trap (measured 2, rendered 1 in kitty with a mono
+		// font), and the stripped base renders one cell everywhere.
+		{"VS16 emoji renders as bare glyph", "love :heart: you", "love ❤  you"},
 		{"unknown shortcode passes through", "wat :nope: lol", "wat :nope: lol"},
 		{"multiple safe", "hi :smile: and :fire:", "hi 😄  and 🔥 "},
 		{"safe + unsafe mixed", "ok :smile: :rainbow_flag: done", "ok 😄  :rainbow_flag: done"},

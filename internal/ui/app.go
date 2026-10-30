@@ -1089,6 +1089,11 @@ func (a *App) threadDrawnAlone() bool {
 	if !a.threadVisible {
 		return false
 	}
+	// Zoomed-thread frames draw the thread across the whole content
+	// area (see computeFrame), so it is by definition drawn alone.
+	if a.winZoom {
+		return true
+	}
 	var scratch panelLayout
 	frame := scratch.Compute(a.width, a.height, a.workspaceRail.Width(), a.sidebar.Width(),
 		a.sidebarVisible, a.threadVisible, a.threadInFront())
@@ -1098,7 +1103,16 @@ func (a *App) threadDrawnAlone() bool {
 // computeFrame resolves this frame's layout from the App's state and
 // stores the hit-test bands. The one place View's layout inputs are
 // assembled; tests call it instead of repeating Compute's arguments.
+//
+// Zoom (alt+shift+x) with a thread open fullscreen the thread: it
+// computes the layout as if the rail and sidebar did not exist and the
+// thread were stacked in front, so the thread pane spans the whole
+// content area and the hit-test bands agree. Toggling zoom off simply
+// stops consulting this branch — no state was mutated.
 func (a *App) computeFrame() panelLayoutFrame {
+	if a.winZoom && a.threadVisible {
+		return a.layout.ComputeThreadAlone(a.width, a.height)
+	}
 	return a.layout.Compute(a.width, a.height, a.workspaceRail.Width(), a.sidebar.Width(),
 		a.sidebarVisible, a.threadVisible, a.threadInFront())
 }
@@ -3592,12 +3606,19 @@ func (a *App) View() tea.View {
 	// still render normally so the user can see context.
 	previewActive := a.preview.Active()
 
+	// Zoomed-thread frames render the thread pane alone across the
+	// whole content area; rail and sidebar are skipped entirely (their
+	// computed widths are already 0).
+	zoomThread := a.winZoom && a.threadVisible
+
 	var panels []string
-	if rail := a.renderRail(frame.RailWidth, frame.ContentHeight, themeVer); rail != "" {
-		panels = append(panels, rail)
-	}
-	if a.sidebarVisible {
-		panels = append(panels, a.renderSidebar(frame.SidebarWidth, frame.SidebarBorder, frame.ContentHeight, themeVer))
+	if !zoomThread {
+		if rail := a.renderRail(frame.RailWidth, frame.ContentHeight, themeVer); rail != "" {
+			panels = append(panels, rail)
+		}
+		if a.sidebarVisible {
+			panels = append(panels, a.renderSidebar(frame.SidebarWidth, frame.SidebarBorder, frame.ContentHeight, themeVer))
+		}
 	}
 	if frame.MsgWidth > 0 {
 		if s := a.renderWindowsRegion(frame, themeVer, previewActive); s != "" {

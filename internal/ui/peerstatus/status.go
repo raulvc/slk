@@ -177,5 +177,5 @@ func shortcodeGlyph(code string) string {
 	if name == "" {
 		return ""
 	}
-	return emoji.CodeMap()[":"+emoji.StripSkinTone(name)+":"]
+	return emoji.StripVariationSelectors(emoji.CodeMap()[":"+emoji.StripSkinTone(name)+":"])
 }

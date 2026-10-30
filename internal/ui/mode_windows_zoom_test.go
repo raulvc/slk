@@ -21,7 +21,7 @@ func sidebarDMOpts() []testOpt {
 }
 
 func TestWindowZoomToggle(t *testing.T) {
-	a := stackedApp(t, 150)
+	a := stackedApp(t, 200) // wide enough that thread+channel tile side by side when un-zoomed
 	if _, err := a.wins.Split(a.focusedWin, wintree.SplitSideBySide, a.windowBounds()); err != nil {
 		t.Fatalf("precondition: split failed: %v", err)
 	}
@@ -133,5 +133,37 @@ func TestThreadsViewToggleKey(t *testing.T) {
 	}
 	if a.view != ViewChannels {
 		t.Errorf("view = %v, want ViewChannels after toggle-off", a.view)
+	}
+}
+
+// TestWindowZoomThreadFullscreen pins the thread half of alt+shift+x:
+// with a thread open, zoom computes the thread pane across the whole
+// content area (no rail, no sidebar), and toggling it off restores the
+// split layout without mutating any state.
+func TestWindowZoomThreadFullscreen(t *testing.T) {
+	a := stackedApp(t, 200) // wide enough that thread+channel tile side by side when un-zoomed
+	// Open a thread and focus it.
+	focusThreadPanel(t, a)
+
+	a.toggleWindowZoom()
+	frame := a.computeFrame()
+	if frame.ThreadWidth <= 0 {
+		t.Fatalf("ThreadWidth = %d, want the fullscreen pane", frame.ThreadWidth)
+	}
+	if frame.MsgWidth != 0 {
+		t.Errorf("MsgWidth = %d, want 0 (thread alone)", frame.MsgWidth)
+	}
+	if frame.RailWidth != 0 || frame.SidebarWidth != 0 {
+		t.Errorf("rail=%d sidebar=%d, want both hidden while zoomed", frame.RailWidth, frame.SidebarWidth)
+	}
+	_ = a.View()
+
+	a.toggleWindowZoom()
+	frame = a.computeFrame()
+	if frame.MsgWidth <= 0 {
+		t.Errorf("after toggle-off MsgWidth = %d, want the split layout back", frame.MsgWidth)
+	}
+	if frame.RailWidth != a.workspaceRail.Width() {
+		t.Errorf("after toggle-off RailWidth = %d, want %d", frame.RailWidth, a.workspaceRail.Width())
 	}
 }

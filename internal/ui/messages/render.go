@@ -862,7 +862,8 @@ func renderInlineFormattingWith(text string, opts RenderSlackMarkdownOpts) strin
 		tokens := emojiutil.ResolveEmojiToTokens(text, opts.Customs)
 		text = renderEmojiTokensInline(tokens, opts.PlaceCtx, opts.EmojiCells, opts.EmojiFlushes)
 	} else {
-		text = emojiutil.ResolveShortcodesInText(emojiutil.StripSkinToneFromText(text))
+		text = emojiutil.StripVariationSelectors(
+			emojiutil.ResolveShortcodesInText(emojiutil.StripSkinToneFromText(text)))
 	}
 
 	return text
@@ -907,8 +908,10 @@ func renderEmojiTokensInline(
 			}
 			// Fallback: plain-text form (":name:" for unresolved
 			// shortcodes / image-mode off, or the source-form glyph
-			// for raw-codepoint emoji that bypassed Place).
-			b.WriteString(tok.Text)
+			// for raw-codepoint emoji that bypassed Place). The VS16
+			// selector is stripped: as a glyph it renders one cell in
+			// kitty but measures two, which shifts the pane border.
+			b.WriteString(emojiutil.StripVariationSelectors(tok.Text))
 		}
 	}
 	return b.String()

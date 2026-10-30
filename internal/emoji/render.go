@@ -23,7 +23,7 @@ func ResolveShortcodesInText(s string) string {
 			// Unrecognized shortcode; pass through.
 			return match
 		}
-		resolved := glyph + " "
+		resolved := StripVariationSelectors(glyph) + " "
 		if ShouldRenderUnicode(resolved) {
 			return resolved
 		}

@@ -159,6 +159,30 @@ func (l *panelLayout) Compute(width, height, railWidth, sidebarWidth int, sideba
 	}
 }
 
+// ComputeThreadAlone resolves a frame where the thread pane spans the
+// whole content area with no rail, sidebar, or messages pane — zoom's
+// (alt+shift+x) fullscreen-thread mode. Compute cannot express this
+// layout: with room for both panes it always tiles side by side
+// regardless of threadFront. Bands are stored for PanelAt like Compute
+// does; with rail/sidebar/msg ends at 0, every content cell maps to
+// PanelThread.
+func (l *panelLayout) ComputeThreadAlone(width, height int) panelLayoutFrame {
+	const (
+		statusHeight = 1
+		paneBorder   = 2
+	)
+	contentHeight := height - statusHeight
+	l.railWidth = 0
+	l.sidebarEnd = 0
+	l.msgEnd = 0
+	l.threadEnd = width
+	return panelLayoutFrame{
+		ThreadWidth:   width - paneBorder,
+		ThreadBorder:  paneBorder,
+		ContentHeight: contentHeight,
+	}
+}
+
 // PanelAt classifies the (x, y) coordinate into the panel under the
 // cursor and returns pane-local content coordinates (after subtracting
 // layout offsets and the 1-row top border). ok=false means the cursor
