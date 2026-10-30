@@ -23,6 +23,12 @@ import (
 // is the caller's snapshot of styles.Version() and serves as the
 // cache's layoutKey.
 func (a *App) renderRail(railWidth, contentHeight int, themeVer int64) string {
+	if railWidth == 0 {
+		// Single-workspace (or pre-boot): the rail is omitted and the
+		// layout gives it no band. Returning early keeps the empty
+		// panel out of the frame composition entirely.
+		return ""
+	}
 	c := &a.renderCache.rail
 	if c.hit(a.workspaceRail.Version(), railWidth, contentHeight, themeVer) {
 		return c.output

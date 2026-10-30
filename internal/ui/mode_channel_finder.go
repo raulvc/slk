@@ -4,8 +4,9 @@
 //
 // Forwards normalised keys to the channel-finder overlay. On a
 // result:
-//   - Synthetic "threads" destination -> activate the threads
-//     view (ThreadsViewActivatedMsg).
+//   - Synthetic "threads"/"activity" destinations -> activate the
+//     corresponding view (ThreadsViewActivatedMsg /
+//     ActivityViewActivatedMsg).
 //   - Already-joined channel -> select it (ChannelSelectedMsg).
 //   - Not yet joined -> fire a Join via the channels service;
 //     ChannelJoinedMsg (reducer_channels) folds it into the
@@ -26,11 +27,17 @@ func handleChannelFinderMode(a *App, msg tea.KeyMsg) tea.Cmd {
 		}
 		a.channelFinder.Close()
 		a.SetMode(ModeNormal)
-		// Synthetic destinations (e.g. Threads view) live alongside
-		// channels in the finder but route to a view activation
-		// rather than a channel switch.
-		if result.Type == "threads" {
+		// Synthetic destinations (e.g. Threads, Activity) live alongside
+		// channels in the finder but route to a view activation rather
+		// than a channel switch.
+		switch result.Type {
+		case "threads":
 			return func() tea.Msg { return ThreadsViewActivatedMsg{} }
+		case "activity":
+			// Same precondition as the ctrl+a path: the sidebar row is
+			// marked active before the view activates.
+			a.sidebar.SelectActivityRow()
+			return func() tea.Msg { return ActivityViewActivatedMsg{} }
 		}
 		return a.openChannel(*result)
 	}

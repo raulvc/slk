@@ -10,6 +10,7 @@ import (
 
 	"github.com/gammons/slk/internal/core"
 	"github.com/gammons/slk/internal/ids"
+	"github.com/gammons/slk/internal/ui/channelfinder"
 	"github.com/gammons/slk/internal/ui/messages"
 )
 
@@ -117,7 +118,7 @@ func TestForwardMessageCancelRestoresSwitcher(t *testing.T) {
 				t.Fatal("cancel did not close picker without sending")
 			}
 			dispatchModeKey(a, keyMod('t', tea.ModCtrl))
-			if got := a.channelFinder.FilteredItems(); len(got) != 4 || !got[0].Synthetic {
+			if got := a.channelFinder.FilteredItems(); len(got) != 5 || !got[0].Synthetic || got[0].ID != channelfinder.ThreadsViewID {
 				t.Fatalf("normal switcher destinations not restored: %+v", got)
 			}
 			cmd = dispatchModeKey(a, keyCode(tea.KeyEnter))

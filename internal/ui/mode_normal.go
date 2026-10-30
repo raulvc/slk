@@ -137,6 +137,17 @@ func handleNormalMode(a *App, msg tea.KeyMsg) tea.Cmd {
 		if a.focusedPanel == PanelThread {
 			return nil
 		}
+		// With the sidebar focused, `/` filters channels instead of
+		// searching messages: the first matching channel is
+		// highlighted as the query is typed (mode_sidebar_filter.go).
+		// No SetFilter("") here: filters are always cleared on exit,
+		// and SetFilter would reset the sidebar cursor needlessly.
+		if a.focusedPanel == PanelSidebar {
+			a.sidebarFilterInput = ""
+			a.statusbar.SetSearch("/")
+			a.SetMode(ModeSidebarFilter)
+			return nil
+		}
 		a.searchInput = ""
 		a.statusbar.SetSearch("/")
 		a.SetMode(ModeSearch)

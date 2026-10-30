@@ -1105,10 +1105,36 @@ func (m *Model) Items() []ChannelItem {
 func (m *Model) SetFilter(filter string) {
 	m.filter = filter
 	m.rebuildFilter()
+	// A match under a collapsed section is neither rendered nor
+	// navigable, so a non-empty filter expands every section that has
+	// a hit — the user just asked to see those channels. Emptying the
+	// filter leaves collapse state alone.
+	if filter != "" {
+		seen := make(map[string]bool, len(m.filtered))
+		for _, idx := range m.filtered {
+			name := m.sectionFor(m.items[idx])
+			if !seen[name] {
+				seen[name] = true
+				delete(m.collapsed, name)
+			}
+		}
+	}
 	m.rebuildNav()
-	// Filter changes reset the cursor to the top so j/k starts from a
-	// sensible place after a typed search.
-	m.cursor = 0
+	// A fresh non-empty filter starts the cursor on the first matching
+	// CHANNEL row — past the pinned Threads/Activity rows and section
+	// headers — so the sidebar-filter mode's highlight lands on the
+	// match itself as the query is typed. An empty filter (or one with
+	// no channel matches) keeps the clamp-to-top behavior.
+	if filter != "" {
+		for i, n := range m.nav {
+			if n.kind == navChannel {
+				m.cursor = i
+				break
+			}
+		}
+	} else {
+		m.cursor = 0
+	}
 	m.cacheValid = false
 	m.dirty()
 }

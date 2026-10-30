@@ -3,9 +3,12 @@
 > **Personal fork** of [gammons/slk](https://github.com/gammons/slk). Extras over upstream:
 >
 > - **Slack-style keybindings** — `ctrl+k` opens the jump dialog (channels, DMs,
->   browseable public channels), `alt+left` / `alt+right` walk the channel history
->   (`ctrl+h` / `ctrl+l` still work), and `shift+esc` marks every unread
->   conversation in the workspace read.
+>   browseable public channels, Threads/Activity views), `alt+left` /
+>   `alt+right` walk the channel history (`ctrl+h` / `ctrl+l` still work), and
+>   `shift+esc` marks every unread conversation in the workspace read.
+> - **Sidebar polish** — `/` with the sidebar focused live-filters channels and
+>   jumps to the first match; the workspace rail disappears when there is only
+>   one workspace.
 > - **Kanagawa look** — kanagawa theme, 24-hour clock and kitty graphics protocol
 >   set in `~/.config/slk/config.toml` (`appearance.timestamp_format = "15:04"`).
 >

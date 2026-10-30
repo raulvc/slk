@@ -99,8 +99,8 @@ func assertFinderOpen(t *testing.T, a *App) {
 	if got := a.channelFinder.Query(); got != "" {
 		t.Fatalf("precondition: finder query = %q, want empty", got)
 	}
-	if got := len(a.channelFinder.FilteredItems()); got != 4 {
-		t.Fatalf("precondition: %d filtered items, want 4 (3 channels + the synthetic Threads row)", got)
+	if got := len(a.channelFinder.FilteredItems()); got != 5 {
+		t.Fatalf("precondition: %d filtered items, want 5 (3 channels + the synthetic Threads and Activity rows)", got)
 	}
 	if got := modalHighlightedRow(t, a.channelFinder.View(120)); !strings.Contains(got, "Threads") {
 		t.Fatalf("precondition: highlighted row = %q, want it to contain %q", got, "Threads")
@@ -118,6 +118,7 @@ func assertFinderOpen(t *testing.T, a *App) {
 func parkOnGeneral(t *testing.T, a *App) {
 	t.Helper()
 	assertFinderOpen(t, a)
+	a.channelFinder.HandleKey("down")
 	a.channelFinder.HandleKey("down")
 	if got := modalHighlightedRow(t, a.channelFinder.View(120)); !strings.Contains(got, "general") {
 		t.Fatalf("precondition: highlighted row = %q, want it parked on %q", got, "general")
@@ -285,6 +286,26 @@ func TestChannelFinderModeKeys(t *testing.T) {
 			},
 		},
 		{
+			// "act" narrows the list to the Activity synthetic; Enter
+			// must route to the view activation, not a channel open.
+			name:     "enter on the synthetic Activity row activates the activity view",
+			opts:     channelFinderOpts(),
+			setup:    typeFinderQuery("act", 1),
+			key:      keyCode(tea.KeyEnter),
+			wantMode: ModeNormal,
+			assert: func(t *testing.T, a *App, cmd tea.Cmd) {
+				if a.channelFinder.IsVisible() {
+					t.Error("finder still visible after a selection")
+				}
+				if cmd == nil {
+					t.Fatal("cmd = nil, want ActivityViewActivatedMsg")
+				}
+				if _, ok := cmd().(ActivityViewActivatedMsg); !ok {
+					t.Errorf("cmd() = %T, want ActivityViewActivatedMsg", cmd())
+				}
+			},
+		},
+		{
 			// With every item filtered out, HandleKey("enter") returns
 			// nil and the finder stays open: the handler must NOT drop
 			// to Normal, or the overlay would be stranded on screen
@@ -312,8 +333,8 @@ func TestChannelFinderModeKeys(t *testing.T) {
 			key:      keyCode(tea.KeyDown),
 			wantMode: ModeChannelFinder,
 			assert: func(t *testing.T, a *App, cmd tea.Cmd) {
-				if got := modalHighlightedRow(t, a.channelFinder.View(120)); !strings.Contains(got, "general") {
-					t.Errorf("highlighted row = %q, want it to contain %q", got, "general")
+				if got := modalHighlightedRow(t, a.channelFinder.View(120)); !strings.Contains(got, "Activity") {
+					t.Errorf("highlighted row = %q, want it to contain %q", got, "Activity")
 				}
 				// Navigation does not change the query, so no server
 				// search is scheduled.
@@ -333,8 +354,8 @@ func TestChannelFinderModeKeys(t *testing.T) {
 			key:      keyMod(tea.KeyDown, tea.ModShift),
 			wantMode: ModeChannelFinder,
 			assert: func(t *testing.T, a *App, _ tea.Cmd) {
-				if got := modalHighlightedRow(t, a.channelFinder.View(120)); !strings.Contains(got, "general") {
-					t.Errorf("highlighted row = %q, want %q: the down arm did not normalise", got, "general")
+				if got := modalHighlightedRow(t, a.channelFinder.View(120)); !strings.Contains(got, "Activity") {
+					t.Errorf("highlighted row = %q, want %q: the down arm did not normalise", got, "Activity")
 				}
 			},
 		},
@@ -349,8 +370,8 @@ func TestChannelFinderModeKeys(t *testing.T) {
 			key:      keyMod(tea.KeyUp, tea.ModShift),
 			wantMode: ModeChannelFinder,
 			assert: func(t *testing.T, a *App, _ tea.Cmd) {
-				if got := modalHighlightedRow(t, a.channelFinder.View(120)); !strings.Contains(got, "Threads") {
-					t.Errorf("highlighted row = %q, want %q: the up arm did not normalise", got, "Threads")
+				if got := modalHighlightedRow(t, a.channelFinder.View(120)); !strings.Contains(got, "Activity") {
+					t.Errorf("highlighted row = %q, want %q: the up arm did not normalise", got, "Activity")
 				}
 			},
 		},

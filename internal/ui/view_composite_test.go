@@ -46,7 +46,11 @@ func TestJoinPanelsHorizontal_MatchesLipgloss(t *testing.T) {
 func buildViewPanels(a *App) (panels []string, status string, contentHeight, width int) {
 	themeVer := int64(0)
 	frame := a.computeFrame()
-	panels = append(panels, a.renderRail(frame.RailWidth, frame.ContentHeight, themeVer))
+	// Mirror the production View: a hidden rail (single workspace)
+	// contributes no panel, so the fast join's equal-height rule holds.
+	if rail := a.renderRail(frame.RailWidth, frame.ContentHeight, themeVer); rail != "" {
+		panels = append(panels, rail)
+	}
 	if a.sidebarVisible {
 		panels = append(panels, a.renderSidebar(frame.SidebarWidth, frame.SidebarBorder, frame.ContentHeight, themeVer))
 	}

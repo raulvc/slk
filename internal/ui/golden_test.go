@@ -1409,7 +1409,8 @@ func frameLayout(a *App) goldenLayout {
 // Note what is NOT set here: focus stays on PanelMessages.
 func goldenThreadApp(t *testing.T, w, h int) *App {
 	t.Helper()
-	a := newGoldenApp(t,
+	a := newGoldenApp(
+		t,
 		withSize(w, h),
 		withChannels(goldenChannels()...),
 		withMessages(goldenMessages()...),
@@ -1552,7 +1553,8 @@ func goldenScenarios() []goldenScenario {
 			// not the scenario's name.
 			name: "overlay_finder", w: goldenBaseW, h: goldenBaseH,
 			build: func(t *testing.T) *App {
-				a := newGoldenApp(t,
+				a := newGoldenApp(
+					t,
 					withSize(goldenBaseW, goldenBaseH),
 					withChannels(goldenChannels()...),
 					withMessages(goldenMessages()...),
@@ -1745,7 +1747,8 @@ func goldenDragApp(t *testing.T, drag bool) *App {
 // the focused pane twice would look correct.
 func goldenWindowSplitScenario(t *testing.T, w, h int) *App {
 	t.Helper()
-	a := newGoldenApp(t,
+	a := newGoldenApp(
+		t,
 		withSize(w, h),
 		withChannels(goldenChannels()...),
 		withActiveChannel("C1"),
@@ -2110,14 +2113,17 @@ func TestGolden_OverlayFinderIsCompositedOverBackdrop(t *testing.T) {
 	}
 
 	// The box is CENTERED: DimmedOverlay places it at
-	// (width-modalW)/2, so the rows carrying its text must start
-	// well inside the frame rather than at column 0.
+	// (width-modalW)/2, so "Switch Channel" must land well inside the
+	// frame rather than at column 0. Measured from the title's column,
+	// not leading whitespace: base-frame glyphs to the left of the box
+	// (the sidebar border, since the rail is omitted for a single
+	// workspace) legitimately occupy the start of the line.
 	for _, line := range strings.Split(plain, "\n") {
 		if !strings.Contains(line, "Switch Channel") {
 			continue
 		}
-		if lead := len(line) - len(strings.TrimLeft(line, " ")); lead < 4 {
-			t.Errorf("the finder box is not centered: %q has %d leading spaces", line, lead)
+		if col := strings.Index(line, "Switch Channel"); col < 4 {
+			t.Errorf("the finder box is not centered: %q has %q at column %d", line, "Switch Channel", col)
 		}
 	}
 
@@ -2125,7 +2131,8 @@ func TestGolden_OverlayFinderIsCompositedOverBackdrop(t *testing.T) {
 	// invisible to stripANSI and only a raw-ANSI golden can pin it.
 	// Assert it exists by comparing against the same frame rendered
 	// with the overlay closed: identical text, different bytes.
-	closed := newGoldenApp(t,
+	closed := newGoldenApp(
+		t,
 		withSize(goldenBaseW, goldenBaseH),
 		withChannels(goldenChannels()...),
 		withMessages(goldenMessages()...),

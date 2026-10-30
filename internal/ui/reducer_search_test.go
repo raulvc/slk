@@ -24,7 +24,12 @@ func searchTestApp(t *testing.T) *App {
 	t.Helper()
 	// withSize(0, 0) preserves NewApp's unsized state: the original
 	// builder set no dimensions and these tests never render.
-	return newTestApp(t,
+	//
+	// The message pane is focused because these tests exercise the
+	// in-channel `/` prompt, which `/` only opens from the messages
+	// pane — from the sidebar it opens the channel filter instead.
+	a := newTestApp(
+		t,
 		withSize(0, 0),
 		withActiveChannel("C1"),
 		withMessages(
@@ -33,6 +38,8 @@ func searchTestApp(t *testing.T) *App {
 			messages.MessageItem{TS: "1700000003.000000", Text: "deployment failed"},
 		),
 	)
+	a.focusedPanel = PanelMessages
+	return a
 }
 
 func resultsMsg(tses ...string) ChannelSearchResultsMsg {
@@ -453,8 +460,10 @@ func TestWorkspaceSearchResultsInstallHighlightTerms(t *testing.T) {
 	}
 	app.searchResults.HandleKey("enter")
 	app.Update(WorkspaceSearchResultsMsg{Query: query, Items: []searchresults.Item{
-		{ChannelID: "C2", ChannelName: "ops", UserName: "sam", TS: "2.0",
-			Text: "deploy to general"},
+		{
+			ChannelID: "C2", ChannelName: "ops", UserName: "sam", TS: "2.0",
+			Text: "deploy to general",
+		},
 	}, Total: 1})
 
 	out := app.searchResults.View(80, 30)

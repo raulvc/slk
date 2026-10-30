@@ -22,6 +22,7 @@ const (
 	ModeWorkspaceSearch
 	ModeUserProfile
 	ModeMarks
+	ModeSidebarFilter
 	modeCount // must stay last: the number of modes
 )
 
@@ -93,6 +94,8 @@ func (m Mode) String() string {
 		return "PROFILE"
 	case ModeMarks:
 		return "MARKS"
+	case ModeSidebarFilter:
+		return "FILTER"
 	default:
 		return "UNKNOWN"
 	}

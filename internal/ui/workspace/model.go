@@ -158,7 +158,10 @@ func (m *Model) RefreshUnreads() {
 }
 
 func (m Model) View(height int) string {
-	if len(m.items) == 0 {
+	// A single workspace gives the rail nothing to switch between, so
+	// the rail is omitted entirely (Width returns 0 and the layout
+	// collapses its band). Two or more workspaces render as before.
+	if len(m.items) <= 1 {
 		return ""
 	}
 
@@ -222,6 +225,11 @@ func (m Model) ClickAt(y int) (WorkspaceItem, bool) {
 }
 
 func (m Model) Width() int {
+	// Hidden while there is nothing to switch to; the layout and the
+	// mouse hit-test read this, so 0 collapses the rail's band.
+	if len(m.items) <= 1 {
+		return 0
+	}
 	return 6 // 6 content, no border
 }
 

@@ -29,6 +29,10 @@ var nonJoinedColor = lipgloss.Color("#5a5a5a")
 // threads-list view instead of switching channels.
 const ThreadsViewID = "__slk_view_threads"
 
+// ActivityViewID is the sentinel ID for the synthetic "Activity" entry,
+// routed the same way as ThreadsViewID (Type=="activity").
+const ActivityViewID = "__slk_view_activity"
+
 // ChannelResult is returned when the user selects a channel.
 type ChannelResult struct {
 	ID     string
@@ -519,6 +523,12 @@ func (m *Model) lessNoQuery(ai, bi int) bool {
 	if a.Synthetic != b.Synthetic {
 		return a.Synthetic
 	}
+	if a.Synthetic && b.Synthetic {
+		// Both synthetic: keep registration order, so the pin order
+		// under empty-query is deterministic and app-controlled
+		// (Threads, then Activity) instead of name-sorted.
+		return ai < bi
+	}
 	if a.Joined != b.Joined {
 		return a.Joined
 	}
@@ -646,14 +656,14 @@ func (m Model) renderBox(termWidth int) string {
 // the DM peer's status (zero value for anything else).
 func channelPrefix(item core.ChannelFinderItem, st peerstatus.Status) string {
 	switch item.Type {
-	case "threads":
-		// Single-cell flag glyph marks the synthetic "Threads" row as
-		// a destination, not a channel. We use ⚑ (U+2691) rather than
-		// the 🚩 emoji because emoji glyphs occupy two terminal cells
-		// in most fonts, which shifts the row's name one column to
-		// the right and breaks alignment with the channel/DM prefixes
-		// around it. Accent color keeps it visually distinct without
-		// double-width.
+	case "threads", "activity":
+		// Single-cell flag glyph marks the synthetic view rows
+		// (Threads, Activity) as destinations, not channels. We use
+		// ⚑ (U+2691) rather than the 🚩 emoji because emoji glyphs
+		// occupy two terminal cells in most fonts, which shifts the
+		// row's name one column to the right and breaks alignment
+		// with the channel/DM prefixes around it. Accent color keeps
+		// it visually distinct without double-width.
 		return lipgloss.NewStyle().Foreground(styles.Accent).Render("⚑")
 	case "private":
 		return lipgloss.NewStyle().Foreground(styles.Warning).Render("◆")

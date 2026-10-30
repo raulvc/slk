@@ -508,6 +508,7 @@ func TestEphemeralQueuedBehindFinderDoesNotOpenAfterChannelSwitch(t *testing.T) 
 
 	a.channelFinder.HandleKey("down")
 	a.channelFinder.HandleKey("down")
+	a.channelFinder.HandleKey("down")
 	pressKey(t, a, keyCode(tea.KeyEnter))
 
 	if a.activeChannelID != "C2" {

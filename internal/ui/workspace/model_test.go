@@ -167,3 +167,32 @@ func TestOtherUnreadCount_UsesLastRefreshWithoutReading(t *testing.T) {
 		t.Errorf("reader calls = %d want 1 (RefreshUnreads only)", calls)
 	}
 }
+
+// A single workspace gives the rail nothing to switch between, so both
+// the width (which drives the layout's band and the mouse hit-test)
+// and the view collapse to nothing. Two or more render as before.
+func TestRailHiddenWithSingleWorkspace(t *testing.T) {
+	one := New([]WorkspaceItem{{ID: "T1", Name: "Acme", Initials: "AC"}}, 0)
+	if got := one.Width(); got != 0 {
+		t.Errorf("Width with 1 workspace = %d, want 0", got)
+	}
+	if got := one.View(20); got != "" {
+		t.Errorf("View with 1 workspace = %q, want empty", got)
+	}
+
+	empty := New(nil, 0)
+	if got := empty.Width(); got != 0 {
+		t.Errorf("Width with 0 workspaces = %d, want 0", got)
+	}
+
+	two := New([]WorkspaceItem{
+		{ID: "T1", Name: "Acme", Initials: "AC"},
+		{ID: "T2", Name: "Beta", Initials: "BE"},
+	}, 0)
+	if got := two.Width(); got != 6 {
+		t.Errorf("Width with 2 workspaces = %d, want 6", got)
+	}
+	if !strings.Contains(two.View(20), "AC") {
+		t.Error("View with 2 workspaces should render tiles")
+	}
+}

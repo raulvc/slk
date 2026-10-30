@@ -14,7 +14,8 @@ import (
 
 func openChannelFinder(t *testing.T) *App {
 	t.Helper()
-	return newTestApp(t,
+	return newTestApp(
+		t,
 		withSize(80, 24),
 		// Descending LastVisited keeps these in declared order under the
 		// empty-query sort, so row N maps to items[N].
@@ -48,9 +49,10 @@ func TestModalClick_OnRowActivates(t *testing.T) {
 	app := openChannelFinder(t)
 	startX, startY := channelFinderOrigin(app)
 
-	// Row offset 2 from the first list row. NewApp pins a synthetic
-	// "Threads" row at the top, so offset 0=Threads, 1=C1, 2=C2.
-	clickY := startY + 5 + 2
+	// Row offset 3 from the first list row. NewApp pins the synthetic
+	// "Threads" and "Activity" rows at the top, so
+	// 0=Threads, 1=Activity, 2=C1, 3=C2.
+	clickY := startY + 5 + 3
 	clickX := startX + 3
 
 	cmd := reduceMouseClick(app, tea.MouseClickMsg{Button: tea.MouseLeft, X: clickX, Y: clickY})

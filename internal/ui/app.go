@@ -612,6 +612,11 @@ type App struct {
 	searchGen   uint64
 	searchSvc   core.SearchService
 
+	// sidebarFilterInput is the prompt buffer while in
+	// ModeSidebarFilter (`/` with the sidebar focused): a live channel
+	// filter whose first match the sidebar highlights as it is typed.
+	sidebarFilterInput string
+
 	// browserOpener launches a URL in the OS browser. Defaults to
 	// openURLCmd; tests inject fakes.
 	browserOpener func(url string) tea.Cmd
@@ -986,16 +991,25 @@ func NewApp() *App {
 	// before the first workspace finishes loading customs.
 	app.compose.SetEmojiEntries(emoji.BuildEntries(nil))
 	app.threadCompose.SetEmojiEntries(emoji.BuildEntries(nil))
-	// Seed the channel finder with the "Threads" view shortcut so users
-	// can jump to the threads-list view from the same overlay they use
-	// to switch channels (ctrl+t / ctrl+p). Selecting this row dispatches
-	// ThreadsViewActivatedMsg in handleChannelFinderMode below.
-	app.channelFinder.SetSyntheticItems([]core.ChannelFinderItem{{
-		ID:     channelfinder.ThreadsViewID,
-		Name:   "Threads",
-		Type:   "threads",
-		Joined: true,
-	}})
+	// Seed the channel finder with the view shortcuts (Threads, Activity)
+	// so users can jump to them from the same overlay they use to switch
+	// channels (ctrl+t / ctrl+p / ctrl+k). Selecting these rows dispatches
+	// ThreadsViewActivatedMsg / ActivityViewActivatedMsg in
+	// handleChannelFinderMode below.
+	app.channelFinder.SetSyntheticItems([]core.ChannelFinderItem{
+		{
+			ID:     channelfinder.ThreadsViewID,
+			Name:   "Threads",
+			Type:   "threads",
+			Joined: true,
+		},
+		{
+			ID:     channelfinder.ActivityViewID,
+			Name:   "Activity",
+			Type:   "activity",
+			Joined: true,
+		},
+	})
 	// Seed the statusbar hint with the configured help key label so it
 	// stays accurate if the binding is ever changed.
 	app.statusbar.SetHelpHint(app.defaultHelpHint())
@@ -3549,7 +3563,9 @@ func (a *App) View() tea.View {
 	previewActive := a.preview.Active()
 
 	var panels []string
-	panels = append(panels, a.renderRail(frame.RailWidth, frame.ContentHeight, themeVer))
+	if rail := a.renderRail(frame.RailWidth, frame.ContentHeight, themeVer); rail != "" {
+		panels = append(panels, rail)
+	}
 	if a.sidebarVisible {
 		panels = append(panels, a.renderSidebar(frame.SidebarWidth, frame.SidebarBorder, frame.ContentHeight, themeVer))
 	}
