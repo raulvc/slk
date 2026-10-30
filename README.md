@@ -1,3 +1,20 @@
+<!-- FORK:BEGIN — personal fork notes; keep this block above everything else -->
+
+> **Personal fork** of [gammons/slk](https://github.com/gammons/slk). Extras over upstream:
+>
+> - **Slack-style keybindings** — `ctrl+k` opens the jump dialog (channels, DMs,
+>   browseable public channels), `alt+left` / `alt+right` walk the channel history
+>   (`ctrl+h` / `ctrl+l` still work), and `shift+esc` marks every unread
+>   conversation in the workspace read.
+> - **Kanagawa look** — kanagawa theme, 24-hour clock and kitty graphics protocol
+>   set in `~/.config/slk/config.toml` (`appearance.timestamp_format = "15:04"`).
+>
+> Keep current with upstream and reinstall in one step:
+> `scripts/sync-fork.sh` — rebases `main` onto upstream, force-pushes the fork,
+> rebuilds with a stamped version and installs to `~/.local/bin`.
+
+<!-- FORK:END -->
+
 # slk
 
 > **A blazingly fast Slack TUI.**
