@@ -1,6 +1,7 @@
 // internal/ui/mode_user_profile.go
 //
-// User-profile-dialog key handler. K, esc and q all close the modal
+// User-profile-dialog key handler. K and P (the open keys), esc
+// and q all close the modal
 // and return to Normal mode; e copies the loaded email and c copies
 // the loaded huddle link (the same actions a click on the 📋 beside
 // each synthesises). Every other key is swallowed, since the dialog is
@@ -15,7 +16,7 @@ import (
 
 func handleUserProfileMode(a *App, msg tea.KeyMsg) tea.Cmd {
 	switch msg.String() {
-	case "K", "esc", "q":
+	case "K", "P", "esc", "q":
 		a.userProfile.Close()
 		a.SetMode(ModeNormal)
 	case "e":

@@ -255,7 +255,9 @@ func reduceMouseClick(a *App, m tea.MouseClickMsg) tea.Cmd {
 		// drag selection in the live channel at bogus coordinates.
 		// Swallow clicks (and therefore drags — they can only begin
 		// here); mouse-wheel scrolling of the live pane stays enabled.
-		if a.wins.Len() > 1 {
+		// A zoomed region draws only the focused window at full size,
+		// which is exactly the single-pane case again.
+		if a.wins.Len() > 1 && !a.winZoom {
 			return nil
 		}
 		a.focusedPanel = PanelMessages

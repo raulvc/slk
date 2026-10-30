@@ -8,8 +8,10 @@
 //     S (presence menu), R (reaction picker)
 //   - navigation: j/k (selection), Ctrl-D/U (half-page), C-f/b
 //     (page), G (bottom), Tab/h/l (focus next/prev), Ctrl-h/l
-//     (nav back/forward through visited channels; alt+left/right
-//     are aliases, Slack-style)
+//     (nav back/forward through visited channels; alt+shift+left/
+//     right are aliases)
+//   - view jumps: ctrl+shift+t toggles the Threads view,
+//     ctrl+shift+3 jumps the sidebar to the first DM
 //   - shift+esc: mark every unread conversation in the workspace read
 //     (the official client's "mark everything read")
 //   - layout toggles: ctrl+b (sidebar), ctrl+] (thread)
@@ -17,12 +19,14 @@
 //     theme, wrapping around (saved per workspace, like Ctrl-Y)
 //   - message ops: y (copy message), Y/C (copy permalink), E (edit), D (delete),
 //     x (remove link preview), U (mark unread), m (set mark),
-//     ' (jump to mark), O/v (open image preview)
+//     ' (jump to mark), O/v (open image preview), P (profile —
+//     message author on a pane, DM peer with the sidebar focused)
 //   - reaction nav sub-state: r enters; arrows + Enter select
 //     (delegated to handleReactionNav, for either content pane)
 //   - window commands: Ctrl-W prefix arms a pending sub-state; the
 //     next key is a window chord (s/v split, h/j/k/l focus, w cycle,
-//     q/c close, o only — delegated to handleWindowChord)
+//     q/c close, z zoom, o only — delegated to handleWindowChord);
+//     alt+shift+o/e/w/x are direct aliases of split/vsplit/close/zoom
 //   - workspace switch: 1-9 number keys (handled in default arm)
 //   - quit confirm: q (close thread if visible, else no-op),
 //     Q (quit confirm)
@@ -40,6 +44,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/gammons/slk/internal/ui/themeswitcher"
+	"github.com/gammons/slk/internal/ui/wintree"
 )
 
 func handleNormalMode(a *App, msg tea.KeyMsg) tea.Cmd {
@@ -324,6 +329,9 @@ func handleNormalMode(a *App, msg tea.KeyMsg) tea.Cmd {
 		return a.openReactionsView()
 
 	case key.Matches(msg, a.keys.UserProfile):
+		if a.focusedPanel == PanelSidebar {
+			return a.openProfileOfSelectedSidebarRow()
+		}
 		return a.openUserProfile()
 
 	case key.Matches(msg, a.keys.Huddle):
@@ -361,6 +369,45 @@ func handleNormalMode(a *App, msg tea.KeyMsg) tea.Cmd {
 
 	case a.view == ViewActivity && key.Matches(msg, a.keys.ActivityUnread):
 		return func() tea.Msg { return ActivityToggleUnreadMsg{} }
+
+	case key.Matches(msg, a.keys.ThreadsView):
+		// Toggle, mirroring the Activity arm: pressing it in the
+		// Threads view returns to the channel view you came from.
+		if a.view == ViewThreads {
+			a.view = ViewChannels
+			a.sidebar.SetThreadsActive(false)
+			if a.activeChannelID != "" {
+				a.sidebar.SelectByID(a.activeChannelID)
+			}
+			a.focusedPanel = PanelMessages
+			return nil
+		}
+		return func() tea.Msg { return ThreadsViewActivatedMsg{} }
+
+	case key.Matches(msg, a.keys.JumpToDMs):
+		// Jump the sidebar to the first DM (the sidebar's DM section),
+		// the keyboard equivalent of clicking the section header.
+		if !a.sidebarVisible {
+			a.ToggleSidebar()
+		}
+		a.focusedPanel = PanelSidebar
+		a.sidebar.SelectFirstDM()
+		return nil
+
+	// Direct one-key aliases of the ctrl+w window chords (windows.go).
+	// The chord forms still work; see keys.go for the help text.
+	case key.Matches(msg, a.keys.WinVSplit):
+		return a.splitWindow(wintree.SplitSideBySide)
+
+	case key.Matches(msg, a.keys.WinSplit):
+		return a.splitWindow(wintree.SplitStacked)
+
+	case key.Matches(msg, a.keys.WinClose):
+		return a.closeWindow()
+
+	case key.Matches(msg, a.keys.WinZoom):
+		a.toggleWindowZoom()
+		return nil
 
 	case key.Matches(msg, a.keys.DownloadFile):
 		return a.downloadFilesOfSelected()

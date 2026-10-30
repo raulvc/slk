@@ -24,10 +24,11 @@ import (
 )
 
 // renderWindowsRegion is the messages-region entry point called from
-// App.View. Preview mode and the single-window tree delegate to the
-// existing path unchanged.
+// App.View. Preview mode, a zoomed focused window (alt+shift+x: the
+// tree is bypassed and the focused window draws at full size), and the
+// single-window tree delegate to the existing path unchanged.
 func (a *App) renderWindowsRegion(frame panelLayoutFrame, themeVer int64, previewActive bool) string {
-	if previewActive || a.wins.Len() == 1 {
+	if previewActive || a.winZoom || a.wins.Len() == 1 {
 		return a.renderMessagesRegion(frame, themeVer, previewActive)
 	}
 	bounds := wintree.Rect{X: 0, Y: 0, W: frame.MsgWidth + frame.MsgBorder, H: frame.ContentHeight}

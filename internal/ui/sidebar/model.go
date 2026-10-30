@@ -278,6 +278,12 @@ type Model struct {
 	// orderedSections function returns the provider's verbatim order
 	// and headers are keyed by section ID instead of name.
 	sectionsProvider SectionsProvider
+
+	// emojiCtx carries the emoji-image pipeline (kitty graphics) so
+	// section headers can render their custom Slack emoji as icons,
+	// the same way messages do. Zero value = text-only fallback.
+	// Set by App via SetEmojiContext.
+	emojiCtx messages.EmojiContext
 	// readStateReader returns the per-channel read state map for the
 	// active workspace, keyed by channel ID. Set by App via
 	// SetReadStateReader. May be nil — nil means "treat everything as
@@ -561,6 +567,15 @@ func (m *Model) SetFocused(focused bool) {
 func (m *Model) InvalidateCache() {
 	m.cacheValid = false
 	m.version++
+}
+
+// SetEmojiContext installs the emoji-image pipeline so section
+// headers render their custom Slack emoji as icons (kitty graphics).
+// Called by App.SetEmojiContext, also on CustomEmojisLoadedMsg; the
+// cache is invalidated either way so the next render picks it up.
+func (m *Model) SetEmojiContext(ctx messages.EmojiContext) {
+	m.emojiCtx = ctx
+	m.InvalidateCache()
 }
 
 // now returns the current time, using the injected clock if set so
@@ -1258,6 +1273,54 @@ func (m *Model) ExpireStatuses(now time.Time) bool {
 		m.dirty()
 	}
 	return changed
+}
+
+// SelectFirstDM moves the cursor to the first DM or group-DM row in
+// display order (ctrl+shift+3's "jump to DMs"), expanding a collapsed
+// DM section the same way SelectByID does. Reports whether a DM row
+// was found; a workspace with no DMs leaves the cursor alone.
+func (m *Model) SelectFirstDM() bool {
+	// Fast path: a DM row already in nav.
+	for i, n := range m.nav {
+		if n.kind != navChannel {
+			continue
+		}
+		item := m.items[m.filtered[n.fi]]
+		if item.Type != "dm" && item.Type != "group_dm" {
+			continue
+		}
+		if m.cursor != i {
+			m.cursor = i
+			m.dirty()
+		}
+		return true
+	}
+	// Slow path: DMs exist in filtered but their section is collapsed
+	// (hidden from nav). Expand the section, rebuild, and retry once.
+	seen := make(map[string]bool, len(m.filtered))
+	for fi, idx := range m.filtered {
+		item := m.items[idx]
+		if item.Type != "dm" && item.Type != "group_dm" {
+			continue
+		}
+		section := m.sectionFor(item)
+		if !seen[section] {
+			seen[section] = true
+			if m.IsCollapsed(section) {
+				m.ToggleCollapse(section)
+			}
+		}
+		for i, n := range m.nav {
+			if n.kind == navChannel && n.fi == fi {
+				if m.cursor != i {
+					m.cursor = i
+					m.dirty()
+				}
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (m *Model) SelectByID(id string) {
@@ -2015,6 +2078,30 @@ func (m *Model) buildCache(width int) {
 // for a section as currently identified in the nav. In Slack mode the
 // nav header is the section ID; in config mode it's the section name
 // (no emoji available).
+// placeSectionEmoji renders one section emoji shortcode through the
+// kitty-image pipeline, or "" when that is not possible (image mode
+// off, no customs map yet, unknown shortcode, or a cold cache). The
+// placement occupies the configured cell footprint (2 by default) on
+// one row, exactly like emoji in messages.
+func (m *Model) placeSectionEmoji(code string) string {
+	if !emojiutil.ImageModeActive() || m.emojiCtx.PlaceCtx.Fetcher == nil || len(m.emojiCtx.Customs) == 0 {
+		return ""
+	}
+	url, ok := emojiutil.URLForShortcode(code, m.emojiCtx.Customs)
+	if !ok {
+		return ""
+	}
+	cells := m.emojiCtx.Cells
+	if cells != 1 && cells != 2 {
+		cells = 2
+	}
+	placement, _, ok := emojiutil.Place(m.emojiCtx.PlaceCtx, url, cells)
+	if !ok {
+		return ""
+	}
+	return placement
+}
+
 func (m *Model) sectionDisplayMeta(sectionKey string) (name, emoji string) {
 	if m.useSlackSections() {
 		for _, meta := range m.sectionsProvider.OrderedSlackSections() {
@@ -2066,15 +2153,26 @@ func (m *Model) renderSectionHeaderLabel(name, cursor string, dotStyle lipgloss.
 	displayName, emojiCode := m.sectionDisplayMeta(name)
 	emojiPrefix := ""
 	if emojiCode != "" {
-		// kyokomi/emoji.Sprint resolves :shortcode: to unicode; on
-		// unknown shortcodes it returns the input unchanged (which
-		// keeps the colons, giving a graceful textual fallback).
-		token := ":" + emojiCode + ":"
-		rendered := emojiutil.Sprint(token)
-		if rendered != token {
-			emojiPrefix = rendered + " "
+		// Custom Slack emoji (e.g. :raphael-estiloso:) have no unicode
+		// equivalent, so when the kitty-image pipeline is wired they
+		// render as images — the same path messages use. The image
+		// measures its configured cell footprint, keeping the header
+		// a single row. A cold cache (fetch in flight) falls through
+		// to the text forms below; the debounced emoji invalidation
+		// re-renders the header once the image lands.
+		if placement := m.placeSectionEmoji(emojiCode); placement != "" {
+			emojiPrefix = placement + " "
 		} else {
-			emojiPrefix = token + " "
+			// kyokomi/emoji.Sprint resolves :shortcode: to unicode; on
+			// unknown shortcodes it returns the input unchanged (which
+			// keeps the colons, giving a graceful textual fallback).
+			token := ":" + emojiCode + ":"
+			rendered := emojiutil.Sprint(token)
+			if rendered != token {
+				emojiPrefix = rendered + " "
+			} else {
+				emojiPrefix = token + " "
+			}
 		}
 	}
 

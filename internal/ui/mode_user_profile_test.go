@@ -26,7 +26,7 @@ func TestUserProfileKey_OpensFromMessages(t *testing.T) {
 	a.activeTeamID = "T1"
 	focusMessages(t, a)
 
-	_, cmd := a.Update(keyPress('K'))
+	_, cmd := a.Update(keyPress('P'))
 	if a.mode != ModeUserProfile {
 		t.Fatalf("mode = %v, want ModeUserProfile", a.mode)
 	}
@@ -55,7 +55,7 @@ func TestUserProfileKey_OpensFromThread(t *testing.T) {
 	}
 	wantUser := reply.UserID
 
-	_, cmd := a.Update(keyPress('K'))
+	_, cmd := a.Update(keyPress('P'))
 	if a.mode != ModeUserProfile {
 		t.Fatalf("mode = %v, want ModeUserProfile", a.mode)
 	}
@@ -95,7 +95,7 @@ func TestUserProfileKey_RejectionToast(t *testing.T) {
 		a := newTestApp(t, withChannels(), withMessages(tc.msgs...), withActiveChannel(""))
 		a.focusedPanel = PanelMessages
 
-		_, cmds[i] = a.Update(keyPress('K'))
+		_, cmds[i] = a.Update(keyPress('P'))
 		if cmds[i] == nil {
 			t.Fatalf("%s: cmd = nil, want the toast's clear tick", tc.name)
 		}
@@ -152,7 +152,7 @@ func TestUserProfileModeKeys(t *testing.T) {
 			name:     "K closes",
 			opts:     normalOpts(),
 			setup:    func(t *testing.T, a *App) { openUserProfileFor(t, a) },
-			key:      keyPress('K'),
+			key:      keyPress('P'),
 			wantMode: ModeNormal,
 			assert: func(t *testing.T, a *App, _ tea.Cmd) {
 				if a.userProfile.IsVisible() {

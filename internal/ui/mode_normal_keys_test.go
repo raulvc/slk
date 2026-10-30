@@ -846,7 +846,8 @@ func TestNormalModeKeys(t *testing.T) {
 
 		// -------------------------------------------------------------
 		// Arms 15 & 16: NavBack `ctrl+h` / NavForward `ctrl+l`.
-		// alt+left / alt+right are aliases; ctrl+k now opens the finder
+		// alt+shift+left / alt+shift+right are aliases; ctrl+k now opens
+		// the finder
 		// (Arm 32's table covers it).
 		// -------------------------------------------------------------
 		{
@@ -869,10 +870,10 @@ func TestNormalModeKeys(t *testing.T) {
 			},
 		},
 		{
-			name:     "alt+left walks the nav history backward",
+			name:     "alt+shift+left walks the nav history backward",
 			opts:     append(normalOpts(), withActiveTeam("T1"), navLookupOpt()),
 			setup:    seedNavHistory,
-			key:      keyMod(tea.KeyLeft, tea.ModAlt),
+			key:      keyMod(tea.KeyLeft, tea.ModAlt|tea.ModShift),
 			wantMode: ModeNormal,
 			assert: func(t *testing.T, a *App, cmd tea.Cmd) {
 				if cmd == nil {
@@ -888,7 +889,7 @@ func TestNormalModeKeys(t *testing.T) {
 			},
 		},
 		navForwardCase("ctrl+l walks the nav history forward", keyMod('l', tea.ModCtrl)),
-		navForwardCase("alt+right walks the nav history forward", keyMod(tea.KeyRight, tea.ModAlt)),
+		navForwardCase("alt+shift+right walks the nav history forward", keyMod(tea.KeyRight, tea.ModAlt|tea.ModShift)),
 		{
 			// The arm's `if cmd != nil` guard falls THROUGH on an empty
 			// stack rather than returning, so the switch ends at the

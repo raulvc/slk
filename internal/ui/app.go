@@ -173,6 +173,13 @@ type App struct {
 	wins       *wintree.Tree
 	focusedWin wintree.LeafID
 
+	// winZoom is the alt+shift+x / ctrl+w z toggle: while true, the
+	// messages region renders only the focused window at full size.
+	// Purely a render-time switch — the window tree is untouched, so
+	// toggling it off restores the split layout exactly. See
+	// toggleWindowZoom and renderWindowsRegion.
+	winZoom bool
+
 	// winModels holds one live messages.Model per window (Phase 3).
 	// INVARIANT: messagepane == winModels[focusedWin] always; keys
 	// exactly match wins.Leaves(). Maintained by newWindowModel /
@@ -1395,16 +1402,36 @@ const noProfileToast = "No profile for this message"
 
 // openUserProfile opens the read-only "who is this person?" modal for
 // the selected message's author (main pane) or selected reply's author
-// (thread pane), like openReactionsView. It rejects no selection, an
-// empty UserID, and a UserID starting with "B" (cmd/slk/history.go's
-// bot-ID substitute for a message with no human author): it opens
-// nothing, shows noProfileToast, and returns that toast's clear tick.
-// On success it seeds the modal from the App's own cached identity,
-// switches to ModeUserProfile, and returns a tea.Cmd that fetches the
-// full profile under a 10s timeout.
+// (thread pane), like openReactionsView. See openUserProfileFor for
+// the rejection rules.
 func (a *App) openUserProfile() tea.Cmd {
 	_, _, _, userID, _, ok := a.selectedMessageContext()
-	if !ok || userID == "" || strings.HasPrefix(userID, "B") {
+	if !ok || userID == "" {
+		return toastWithClear(a, noProfileToast, 2*time.Second)
+	}
+	return a.openUserProfileFor(userID)
+}
+
+// openProfileOfSelectedSidebarRow is P with the sidebar focused: show
+// the profile of the selected row's DM peer. Only direct-message rows
+// name a person (DMUserID); channels have no profile to show and group
+// DMs name several, so both decline with a toast.
+func (a *App) openProfileOfSelectedSidebarRow() tea.Cmd {
+	item, ok := a.sidebar.SelectedItem()
+	if !ok || item.DMUserID == "" {
+		return toastWithClear(a, noProfileToast, 2*time.Second)
+	}
+	return a.openUserProfileFor(item.DMUserID)
+}
+
+// openUserProfileFor opens the profile modal for one user ID. It
+// rejects a bot ID (cmd/slk/history.go's "B" substitute for a message
+// with no human author): it opens nothing, shows noProfileToast, and
+// returns that toast's clear tick. On success it seeds the modal from
+// the App's own cached identity, switches to ModeUserProfile, and
+// returns a tea.Cmd that fetches the full profile under a 10s timeout.
+func (a *App) openUserProfileFor(userID string) tea.Cmd {
+	if userID == "" || strings.HasPrefix(userID, "B") {
 		return toastWithClear(a, noProfileToast, 2*time.Second)
 	}
 
@@ -2915,6 +2942,9 @@ func (a *App) SetEmojiContext(ctx messages.EmojiContext) {
 		m.SetEmojiContext(ctx)
 	}
 	a.threadPanel.SetEmojiContext(ctx)
+	// The sidebar renders section-header emoji through the same
+	// pipeline (custom Slack emoji have no unicode equivalent).
+	a.sidebar.SetEmojiContext(ctx)
 	a.reactionPicker.SetEmojiContext(reactionpicker.EmojiContext{
 		PlaceCtx: ctx.PlaceCtx,
 		Cells:    ctx.Cells,

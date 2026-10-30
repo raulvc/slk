@@ -54,6 +54,8 @@ type KeyMap struct {
 	MarksDelete         key.Binding
 	NextUnread          key.Binding
 	PrevUnread          key.Binding
+	ThreadsView         key.Binding
+	JumpToDMs           key.Binding
 	ActivityView        key.Binding
 	ActivityUnread      key.Binding
 	WorkspaceFinder     key.Binding
@@ -80,6 +82,7 @@ type KeyMap struct {
 	WinNavigate         key.Binding
 	WinCycle            key.Binding
 	WinClose            key.Binding
+	WinZoom             key.Binding
 	WinOnly             key.Binding
 	ToggleBroadcast     key.Binding
 	OpenInEditor        key.Binding
@@ -109,7 +112,7 @@ func DefaultKeyMap() KeyMap {
 		FuzzyFinderAlt:  key.NewBinding(key.WithKeys("ctrl+p"), key.WithHelp("ctrl+p", "switch channel")),
 		// Slack-style jump dialog: channels, DMs and browseable public
 		// channels. Took over from navigate-forward, which keeps ctrl+l
-		// (and alt+right) only.
+		// (and alt+shift+right) only.
 		GlobalFinder: key.NewBinding(key.WithKeys("ctrl+k"), key.WithHelp("ctrl+k", "jump to channel or DM")),
 		// Shift+Esc mirrors the official client's "mark everything read".
 		MarkAllRead:     key.NewBinding(key.WithKeys("shift+esc"), key.WithHelp("shift+esc", "mark all channels read")),
@@ -141,11 +144,15 @@ func DefaultKeyMap() KeyMap {
 		// inside the ' chord, and the two commands are dispatched from
 		// the command registry, so none of them is a KeyMap binding —
 		// but all three need to appear in the help overlay.
-		MarkBackJump:   key.NewBinding(key.WithHelp("''", "back-jump to where you jumped from")),
-		MarksList:      key.NewBinding(key.WithHelp(":marks", "list marks")),
-		MarksDelete:    key.NewBinding(key.WithHelp(":delmarks", "delete marks by letter")),
-		NextUnread:     key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "next unread channel")),
-		PrevUnread:     key.NewBinding(key.WithKeys("A"), key.WithHelp("A", "prev unread channel")),
+		MarkBackJump: key.NewBinding(key.WithHelp("''", "back-jump to where you jumped from")),
+		MarksList:    key.NewBinding(key.WithHelp(":marks", "list marks")),
+		MarksDelete:  key.NewBinding(key.WithHelp(":delmarks", "delete marks by letter")),
+		NextUnread:   key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "next unread channel")),
+		PrevUnread:   key.NewBinding(key.WithKeys("A"), key.WithHelp("A", "prev unread channel")),
+		// ctrl+shift+t toggles the Threads view; ctrl+shift+3 jumps the
+		// sidebar to the first DM — the two views the jump dialog lists.
+		ThreadsView:    key.NewBinding(key.WithKeys("ctrl+shift+t"), key.WithHelp("ctrl+shift+t", "toggle threads view")),
+		JumpToDMs:      key.NewBinding(key.WithKeys("ctrl+shift+3"), key.WithHelp("ctrl+shift+3", "jump to DMs")),
 		ActivityView:   key.NewBinding(key.WithKeys("ctrl+a"), key.WithHelp("ctrl+a / :activity", "open activity")),
 		ActivityUnread: key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "Activity: toggle unread-only")),
 		// Keyless: ctrl+w is reserved as the window-command prefix
@@ -160,10 +167,12 @@ func DefaultKeyMap() KeyMap {
 		ThemePrev:           key.NewBinding(key.WithKeys("alt+shift+y", "alt+Y", "alt+shift+Y"), key.WithHelp("alt+shift+y", "prev theme (per workspace)")),
 		PresenceMenu:        key.NewBinding(key.WithKeys("ctrl+s"), key.WithHelp("ctrl+s", "set status")),
 		ToggleSection:       key.NewBinding(key.WithKeys("space"), key.WithHelp("space", "toggle section")),
-		NavBack:             key.NewBinding(key.WithKeys("ctrl+h", "alt+left"), key.WithHelp("ctrl+h / alt+left", "navigate back")),
+		NavBack:             key.NewBinding(key.WithKeys("ctrl+h", "alt+shift+left"), key.WithHelp("ctrl+h / alt+shift+left", "navigate back")),
 		// ctrl+k used to be the forward alias; it now opens the
-		// Slack-style jump dialog (GlobalFinder above).
-		NavForward: key.NewBinding(key.WithKeys("ctrl+l", "alt+right"), key.WithHelp("ctrl+l / alt+right", "navigate forward")),
+		// Slack-style jump dialog (GlobalFinder above). The alt+arrow
+		// aliases carry shift: plain alt+left/right never arrived
+		// reliably from kitty.
+		NavForward: key.NewBinding(key.WithKeys("ctrl+l", "alt+shift+right"), key.WithHelp("ctrl+l / alt+shift+right", "navigate forward")),
 		Help:       key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "show keybindings")),
 		// Keyless, like MarksList: :help is dispatched from the
 		// command registry. Kept apart from Help so the status-bar
@@ -173,18 +182,19 @@ func DefaultKeyMap() KeyMap {
 		SaveThread:     key.NewBinding(key.WithKeys("S"), key.WithHelp("S", "save thread")),
 		RespondButtons: key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "respond to message buttons")),
 		ListReactions:  key.NewBinding(key.WithKeys("L"), key.WithHelp("L", "list reactions")),
-		UserProfile:    key.NewBinding(key.WithKeys("K"), key.WithHelp("K", "show author's profile")),
+		UserProfile:    key.NewBinding(key.WithKeys("P"), key.WithHelp("P", "show profile")),
 		Huddle:         key.NewBinding(key.WithKeys("H"), key.WithHelp("H / :huddle", "copy huddle link")),
-		// Window commands (design §4). WindowPrefix is the only real
-		// binding; the Win* entries are keyless help-only bindings
-		// (same trick as WorkspaceFinder above) — actual dispatch of
-		// the chord key happens in handleWindowChord.
+		// Window commands (design §4). WindowPrefix is the chord
+		// prefix; the alt+shift chords are direct one-key aliases of
+		// the same ops (dispatched alongside the chord in
+		// handleWindowChord / handleNormalMode).
 		WindowPrefix: key.NewBinding(key.WithKeys("ctrl+w"), key.WithHelp("ctrl+w", "window commands")),
-		WinSplit:     key.NewBinding(key.WithHelp("ctrl+w s / :sp", "split window")),
-		WinVSplit:    key.NewBinding(key.WithHelp("ctrl+w v / :vsp", "vertical split window")),
+		WinSplit:     key.NewBinding(key.WithKeys("alt+shift+o"), key.WithHelp("alt+shift+o / ctrl+w s / :sp", "split window horizontally")),
+		WinVSplit:    key.NewBinding(key.WithKeys("alt+shift+e"), key.WithHelp("alt+shift+e / ctrl+w v / :vsp", "split window vertically")),
 		WinNavigate:  key.NewBinding(key.WithHelp("ctrl+w h/j/k/l", "focus window in direction")),
 		WinCycle:     key.NewBinding(key.WithHelp("ctrl+w w", "cycle windows")),
-		WinClose:     key.NewBinding(key.WithHelp("ctrl+w q / :q", "close window")),
+		WinClose:     key.NewBinding(key.WithKeys("alt+shift+w"), key.WithHelp("alt+shift+w / ctrl+w q / :q", "close window")),
+		WinZoom:      key.NewBinding(key.WithKeys("alt+shift+x"), key.WithHelp("alt+shift+x / ctrl+w z", "toggle fullscreen of focused window")),
 		WinOnly:      key.NewBinding(key.WithHelp("ctrl+w o / :only", "close other windows")),
 		// Insert mode, thread compose only: toggles Slack's
 		// "Also send to #channel" checkbox for the next reply.

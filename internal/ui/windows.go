@@ -37,11 +37,25 @@ func (a *App) handleWindowChord(msg tea.KeyMsg) tea.Cmd {
 		return a.cycleWindow()
 	case "q", "c":
 		return a.closeWindow()
+	case "z":
+		a.toggleWindowZoom()
+		return nil
 	case "o":
 		a.onlyWindow()
 		return nil
 	}
 	return nil
+}
+
+// toggleWindowZoom flips the zoomed state: while zoomed, the messages
+// region renders ONLY the focused window across its full area, the way
+// vim's ctrl+w _ would (tmux calls it zoom). The window tree is left
+// untouched, so toggling off restores the split layout exactly, and
+// switching focus/panels still works — only the drawing changes.
+// With a single window there is nothing to zoom; the flag is still
+// allowed so a later split keeps the user's chosen view.
+func (a *App) toggleWindowZoom() {
+	a.winZoom = !a.winZoom
 }
 
 // windowBounds returns the messages-region rectangle the window tree

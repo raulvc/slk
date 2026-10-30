@@ -2353,7 +2353,7 @@ func TestGolden_UserProfile(t *testing.T) {
 		t.Fatal("precondition: no selected message")
 	}
 
-	updateAndRender(t, a, keyPress('K'))
+	updateAndRender(t, a, keyPress('P'))
 	if !a.userProfile.IsVisible() {
 		t.Fatal("precondition: K did not open the user-profile dialog")
 	}
