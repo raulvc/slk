@@ -224,6 +224,7 @@ func reduceWorkspaceReady(a *App, m WorkspaceReadyMsg) tea.Cmd {
 		if m.SidebarWidth != 0 {
 			a.sidebar.SetWidth(m.SidebarWidth)
 		}
+		a.sidebar.SetSectionLabels(m.SectionLabels)
 		a.sidebar.SetSectionsProvider(m.SectionsProvider)
 		a.SetChannels(m.Channels)
 		a.channelFinder.SetItems(m.FinderItems)
@@ -413,6 +414,7 @@ func reduceWorkspaceSwitched(a *App, m WorkspaceSwitchedMsg) tea.Cmd {
 	if m.SidebarWidth != 0 {
 		a.sidebar.SetWidth(m.SidebarWidth)
 	}
+	a.sidebar.SetSectionLabels(m.SectionLabels)
 	a.workspaceRail.SelectByID(m.TeamID)
 
 	var batch []tea.Cmd

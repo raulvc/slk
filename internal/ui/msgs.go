@@ -341,9 +341,13 @@ type (
 		Domain       string
 		Theme        string // resolved theme name (per-workspace or global default)
 		SidebarWidth int    // resolved sidebar width (per-workspace or global default)
-		Channels     []sidebar.ChannelItem
-		FinderItems  []core.ChannelFinderItem
-		UserNames    map[string]string
+		// SectionLabels renames Slack-native sidebar sections for this
+		// workspace (config section_labels, workspace over global).
+		// Nil when unset.
+		SectionLabels map[string]string
+		Channels      []sidebar.ChannelItem
+		FinderItems   []core.ChannelFinderItem
+		UserNames     map[string]string
 		// UserStatuses is every cached user's custom status, for author
 		// names and DM rows. DND is not cached; RefreshPeerDND fetches it
 		// and delivers it as UserDNDChangeMsg.
@@ -421,9 +425,13 @@ type (
 		Domain       string
 		Theme        string // resolved theme name (per-workspace or global default)
 		SidebarWidth int    // resolved sidebar width (per-workspace or global default)
-		Channels     []sidebar.ChannelItem
-		FinderItems  []core.ChannelFinderItem
-		UserNames    map[string]string
+		// SectionLabels renames Slack-native sidebar sections for this
+		// workspace (config section_labels, workspace over global).
+		// Nil when unset.
+		SectionLabels map[string]string
+		Channels      []sidebar.ChannelItem
+		FinderItems   []core.ChannelFinderItem
+		UserNames     map[string]string
 		// UserStatuses is every cached user's custom status, for author
 		// names. DM peers' DND arrives separately after connect.
 		UserStatuses map[string]peerstatus.Status

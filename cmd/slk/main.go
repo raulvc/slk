@@ -1490,13 +1490,14 @@ func run() error {
 		// then on; only switchSeq is kept for AfterSwitch.
 		switchNames, switchSeq := wctx.UserNames.SnapshotForUI()
 		return ui.WorkspaceSwitchedMsg{
-			TeamID:       wctx.TeamID,
-			TeamName:     wctx.TeamName,
-			Domain:       wctx.Client.TeamSubdomain(),
-			Theme:        snap.ResolveTheme(teamID),
-			SidebarWidth: snap.ResolveWidth(teamID),
-			Channels:     channels,
-			FinderItems:  wctx.FinderItems,
+			TeamID:        wctx.TeamID,
+			TeamName:      wctx.TeamName,
+			Domain:        wctx.Client.TeamSubdomain(),
+			Theme:         snap.ResolveTheme(teamID),
+			SidebarWidth:  snap.ResolveWidth(teamID),
+			SectionLabels: snap.ResolveSectionLabels(teamID),
+			Channels:      channels,
+			FinderItems:   wctx.FinderItems,
 			// A private copy: the UI must never share a map with the
 			// engine's goroutines (see userNameStore).
 			UserNames:        switchNames,
@@ -1704,11 +1705,12 @@ func run() error {
 			// then on; only readySeq is kept for NotifyFrom below.
 			readyNames, readySeq := wctx.UserNames.SnapshotForUI()
 			p.Send(ui.WorkspaceReadyMsg{
-				TeamID:       wctx.TeamID,
-				TeamName:     wctx.TeamName,
-				Domain:       wctx.Client.TeamSubdomain(),
-				Theme:        cfgSnap.ResolveTheme(wctx.TeamID),
-				SidebarWidth: cfgSnap.ResolveWidth(wctx.TeamID),
+				TeamID:        wctx.TeamID,
+				TeamName:      wctx.TeamName,
+				Domain:        wctx.Client.TeamSubdomain(),
+				Theme:         cfgSnap.ResolveTheme(wctx.TeamID),
+				SidebarWidth:  cfgSnap.ResolveWidth(wctx.TeamID),
+				SectionLabels: cfgSnap.ResolveSectionLabels(wctx.TeamID),
 				// Detach both UI snapshots before the event owner starts.
 				Channels:    slices.Clone(wctx.Channels),
 				FinderItems: slices.Clone(wctx.FinderItems),

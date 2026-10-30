@@ -279,11 +279,12 @@ type Model struct {
 	// and headers are keyed by section ID instead of name.
 	sectionsProvider SectionsProvider
 
-	// emojiCtx carries the emoji-image pipeline (kitty graphics) so
-	// section headers can render their custom Slack emoji as icons,
-	// the same way messages do. Zero value = text-only fallback.
-	// Set by App via SetEmojiContext.
-	emojiCtx messages.EmojiContext
+	// sectionLabels overrides Slack-native section display names,
+	// keyed by section ID or current name (config section_labels).
+	// Nil/empty = no overrides. Set by App via SetSectionLabels at
+	// workspace activation.
+	sectionLabels map[string]string
+
 	// readStateReader returns the per-channel read state map for the
 	// active workspace, keyed by channel ID. Set by App via
 	// SetReadStateReader. May be nil — nil means "treat everything as
@@ -367,6 +368,14 @@ type Model struct {
 // When non-nil and Ready, the sidebar renders sections in the
 // provider's order and keys collapse state by section ID. Pass nil
 // to revert to config-glob behavior.
+// SetSectionLabels installs the configured display-name overrides for
+// Slack-native sections (config section_labels, workspace over
+// global). Nil clears. Invalidates the render cache either way.
+func (m *Model) SetSectionLabels(labels map[string]string) {
+	m.sectionLabels = labels
+	m.InvalidateCache()
+}
+
 func (m *Model) SetSectionsProvider(p SectionsProvider) {
 	key, hadKey := m.currentCursorKey()
 	m.sectionsProvider = p
@@ -567,15 +576,6 @@ func (m *Model) SetFocused(focused bool) {
 func (m *Model) InvalidateCache() {
 	m.cacheValid = false
 	m.version++
-}
-
-// SetEmojiContext installs the emoji-image pipeline so section
-// headers render their custom Slack emoji as icons (kitty graphics).
-// Called by App.SetEmojiContext, also on CustomEmojisLoadedMsg; the
-// cache is invalidated either way so the next render picks it up.
-func (m *Model) SetEmojiContext(ctx messages.EmojiContext) {
-	m.emojiCtx = ctx
-	m.InvalidateCache()
 }
 
 // now returns the current time, using the injected clock if set so
@@ -2078,30 +2078,6 @@ func (m *Model) buildCache(width int) {
 // for a section as currently identified in the nav. In Slack mode the
 // nav header is the section ID; in config mode it's the section name
 // (no emoji available).
-// placeSectionEmoji renders one section emoji shortcode through the
-// kitty-image pipeline, or "" when that is not possible (image mode
-// off, no customs map yet, unknown shortcode, or a cold cache). The
-// placement occupies the configured cell footprint (2 by default) on
-// one row, exactly like emoji in messages.
-func (m *Model) placeSectionEmoji(code string) string {
-	if !emojiutil.ImageModeActive() || m.emojiCtx.PlaceCtx.Fetcher == nil || len(m.emojiCtx.Customs) == 0 {
-		return ""
-	}
-	url, ok := emojiutil.URLForShortcode(code, m.emojiCtx.Customs)
-	if !ok {
-		return ""
-	}
-	cells := m.emojiCtx.Cells
-	if cells != 1 && cells != 2 {
-		cells = 2
-	}
-	placement, _, ok := emojiutil.Place(m.emojiCtx.PlaceCtx, url, cells)
-	if !ok {
-		return ""
-	}
-	return placement
-}
-
 func (m *Model) sectionDisplayMeta(sectionKey string) (name, emoji string) {
 	if m.useSlackSections() {
 		for _, meta := range m.sectionsProvider.OrderedSlackSections() {
@@ -2118,6 +2094,9 @@ func (m *Model) sectionDisplayMeta(sectionKey string) (name, emoji string) {
 						name = "(unnamed)"
 					}
 				}
+				if renamed := m.sectionLabelOverride(meta.ID, name); renamed != "" {
+					name = renamed
+				}
 				return name, meta.Emoji
 			}
 		}
@@ -2125,6 +2104,22 @@ func (m *Model) sectionDisplayMeta(sectionKey string) (name, emoji string) {
 		return sectionKey, ""
 	}
 	return sectionKey, ""
+}
+
+// sectionLabelOverride resolves the configured display-name override
+// for a Slack-native section: by section ID first, then by current
+// section name. Returns "" when nothing is configured.
+func (m *Model) sectionLabelOverride(id, name string) string {
+	if len(m.sectionLabels) == 0 {
+		return ""
+	}
+	if v, ok := m.sectionLabels[id]; ok && v != "" {
+		return v
+	}
+	if v, ok := m.sectionLabels[name]; ok && v != "" {
+		return v
+	}
+	return ""
 }
 
 // renderSectionHeaderLabel returns the (normal, selected) label
@@ -2151,30 +2146,30 @@ func (m *Model) sectionDisplayMeta(sectionKey string) (name, emoji string) {
 // not create it. Filed separately; do not fix it inline here.
 func (m *Model) renderSectionHeaderLabel(name, cursor string, dotStyle lipgloss.Style, bgAnsi string) (string, string) {
 	displayName, emojiCode := m.sectionDisplayMeta(name)
+	// The emoji renders via Sprint (unicode glyphs only): embedding a
+	// kitty-image placement in a View string is not an option — the
+	// renderer mangles APC sequences (see messages model.go's
+	// out-of-band flush design). Custom Slack emoji therefore show as
+	// their literal :shortcode:, which section_labels overrides can
+	// replace wholesale (including with a known unicode shortcode).
 	emojiPrefix := ""
 	if emojiCode != "" {
-		// Custom Slack emoji (e.g. :raphael-estiloso:) have no unicode
-		// equivalent, so when the kitty-image pipeline is wired they
-		// render as images — the same path messages use. The image
-		// measures its configured cell footprint, keeping the header
-		// a single row. A cold cache (fetch in flight) falls through
-		// to the text forms below; the debounced emoji invalidation
-		// re-renders the header once the image lands.
-		if placement := m.placeSectionEmoji(emojiCode); placement != "" {
-			emojiPrefix = placement + " "
-		} else {
-			// kyokomi/emoji.Sprint resolves :shortcode: to unicode; on
-			// unknown shortcodes it returns the input unchanged (which
-			// keeps the colons, giving a graceful textual fallback).
-			token := ":" + emojiCode + ":"
-			rendered := emojiutil.Sprint(token)
-			if rendered != token {
-				emojiPrefix = rendered + " "
-			} else {
-				emojiPrefix = token + " "
-			}
+		// Only RESOLVED shortcodes become a prefix. A custom Slack
+		// emoji (workspace-specific, no unicode equivalent) stays
+		// unresolved, and rendering it literally as ":name:" bloats
+		// the header past the sidebar width — the wrapped, broken-
+		// looking section label. Dropping it is the graceful path;
+		// section_labels overrides can put a resolvable shortcode or
+		// any text in its place.
+		token := ":" + emojiCode + ":"
+		rendered := emojiutil.Sprint(token)
+		if rendered != token {
+			emojiPrefix = rendered + " "
 		}
 	}
+	// A configured label may itself carry shortcodes (:calendar: …);
+	// resolve them so the override renders as a glyph, not as text.
+	displayName = emojiutil.Sprint(displayName)
 
 	glyph := "▾" // expanded
 	if m.IsCollapsed(name) {

@@ -23,8 +23,16 @@ type Config struct {
 	Compose       Compose               `toml:"compose"`
 	Marks         Marks                 `toml:"marks"`
 	Sections      map[string]SectionDef `toml:"sections"`
-	Theme         Theme                 `toml:"theme"`
-	Workspaces    map[string]Workspace  `toml:"workspaces"`
+	// SectionLabels renames Slack-native sidebar sections, keyed by
+	// section ID (e.g. "L0140RER2TE") or by current section name.
+	// Per-workspace [workspaces.*.section_labels] entries win over
+	// these. Use: Slack section emoji are custom workspace emoji that
+	// have no unicode equivalent, so a label override is the way to
+	// put a recognizable name (or a known unicode :shortcode:) on a
+	// section whose Slack-side emoji cannot render in a terminal.
+	SectionLabels map[string]string    `toml:"section_labels"`
+	Theme         Theme                `toml:"theme"`
+	Workspaces    map[string]Workspace `toml:"workspaces"`
 }
 
 type Compose struct {
@@ -210,6 +218,9 @@ type Workspace struct {
 	// workspace. Nil means "fall through to global".
 	UseSlackSections *bool                 `toml:"use_slack_sections"`
 	Sections         map[string]SectionDef `toml:"sections"`
+	// SectionLabels renames this workspace's Slack-native sections;
+	// see the root SectionLabels doc.
+	SectionLabels map[string]string `toml:"section_labels"`
 	// VersionTS caches the Slack build timestamp last reported by
 	// client.shouldReload, sent as _x_version_ts on every workspace-API
 	// request. Empty means "use the compiled-in fallback and refresh on
@@ -470,6 +481,22 @@ func (c Config) ResolveWidth(teamID string) int {
 // ResolveTheme returns the theme name to use for the given workspace,
 // falling back to the global Appearance.Theme when no per-workspace theme
 // is set, and to "nord" when no global theme is set either.
+// ResolveSectionLabels merges the global and per-workspace section
+// label overrides for teamID, workspace entries winning on key
+// collisions. Returns an empty map when neither is configured.
+func (c Config) ResolveSectionLabels(teamID string) map[string]string {
+	out := make(map[string]string, len(c.SectionLabels))
+	for k, v := range c.SectionLabels {
+		out[k] = v
+	}
+	if ws, ok := c.WorkspaceByTeamID(teamID); ok {
+		for k, v := range ws.SectionLabels {
+			out[k] = v
+		}
+	}
+	return out
+}
+
 func (c Config) ResolveTheme(teamID string) string {
 	if ws, ok := c.WorkspaceByTeamID(teamID); ok && ws.Theme != "" {
 		return ws.Theme

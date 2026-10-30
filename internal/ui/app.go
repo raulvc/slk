@@ -1303,6 +1303,9 @@ func (a *App) walkNavCmd(step int) tea.Cmd {
 	if !ok {
 		return nil
 	}
+	// A zoom is tied to looking at one pane; navigating away restores
+	// the normal layout so the walk is always visible.
+	a.winZoom = false
 	cmd, ok := a.applyLocation(loc, true)
 	if !ok {
 		// The channel resolved during Walk but no longer does here (a
@@ -2956,9 +2959,6 @@ func (a *App) SetEmojiContext(ctx messages.EmojiContext) {
 		m.SetEmojiContext(ctx)
 	}
 	a.threadPanel.SetEmojiContext(ctx)
-	// The sidebar renders section-header emoji through the same
-	// pipeline (custom Slack emoji have no unicode equivalent).
-	a.sidebar.SetEmojiContext(ctx)
 	a.reactionPicker.SetEmojiContext(reactionpicker.EmojiContext{
 		PlaceCtx: ctx.PlaceCtx,
 		Cells:    ctx.Cells,

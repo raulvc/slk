@@ -14,7 +14,9 @@
 >   with the sidebar focused.
 > - **Sidebar polish** — `/` with the sidebar focused live-filters channels and
 >   jumps to the first match; the workspace rail disappears when there is only
->   one workspace; section headers render custom Slack emoji as icons.
+>   one workspace; unresolvable section-emoji shortcodes no longer bloat
+>   headers, and `section_labels` (global or per-workspace) renames
+>   Slack-native sections, shortcodes included.
 > - **Sidebar polish** — `/` with the sidebar focused live-filters channels and
 >   jumps to the first match; the workspace rail disappears when there is only
 >   one workspace.
