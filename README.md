@@ -3,9 +3,18 @@
 > **Personal fork** of [gammons/slk](https://github.com/gammons/slk). Extras over upstream:
 >
 > - **Slack-style keybindings** — `ctrl+k` opens the jump dialog (channels, DMs,
->   browseable public channels, Threads/Activity views), `alt+left` /
->   `alt+right` walk the channel history (`ctrl+h` / `ctrl+l` still work), and
+>   browseable public channels, Threads/Activity views), `alt+shift+left` /
+>   `alt+shift+right` walk the channel history (`ctrl+h` / `ctrl+l` still work),
+>   `ctrl+shift+t` toggles the Threads view, `ctrl+shift+3` jumps to DMs, and
 >   `shift+esc` marks every unread conversation in the workspace read.
+> - **Window splits** — `alt+shift+e` / `alt+shift+o` split vertically /
+>   horizontally, `alt+shift+w` closes the focused split, `alt+shift+x` toggles
+>   fullscreen (zoom) of the focused window (`ctrl+w …` chords still work).
+> - **`P` shows a profile** — message author on a pane, the selected DM peer
+>   with the sidebar focused.
+> - **Sidebar polish** — `/` with the sidebar focused live-filters channels and
+>   jumps to the first match; the workspace rail disappears when there is only
+>   one workspace; section headers render custom Slack emoji as icons.
 > - **Sidebar polish** — `/` with the sidebar focused live-filters channels and
 >   jumps to the first match; the workspace rail disappears when there is only
 >   one workspace.
